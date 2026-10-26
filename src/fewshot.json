@@ -1,0 +1,250 @@
+{
+ "description": "Ejemplos para el prompt few-shot de src/extract.py. Textos de la Agencia SINC (CC BY 4.0) adaptados: las personas, instituciones y lugares son ficticios. No se usan en la inferencia ni en la evaluación (no están en el corpus).",
+ "examples": [
+  {
+   "source": {
+    "url": "https://www.agenciasinc.es/Noticias/Un-nuevo-editor-CRISPR-podria-corregir-casi-todas-las-enfermedades-geneticas",
+    "date": "2019-10-22",
+    "authors": [
+     "Ana Hernando"
+    ],
+    "fuente": "SINC",
+    "license": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)",
+    "changes": "Nombres de personas, instituciones, sistemas y lugares sustituidos por otros ficticios; algunas frases eliminadas."
+   },
+   "article": {
+    "type": "Noticias",
+    "title": "Un nuevo editor CRISPR podría corregir casi todas las enfermedades genéticas",
+    "antetitulo": "",
+    "lead": "Un equipo científico del Instituto Hollis en EE UU ha presentado una nueva herramienta de edición de ADN de alta precisión que, según los autores, podría corregir el 89 % de las variantes genéticas humanas conocidas asociadas a enfermedades. Todo ello, sin los efectos secundarios de técnicas actuales como CRISPR Cas9.",
+    "text": "La revista Nature presenta esta semana un estudio liderado por Samuel Ortega en el Instituto Hollis , un centro mixto de dos universidades de Boston, que asegura haber desarrollado una potente herramienta de edición molecular capaz de modificar con una precisión sin precedentes el ADN de las células humanas, con menos efectos secundarios y errores que otras técnicas actuales.\n\nSegún los autores, las limitaciones del famoso sistema CRISPR Cas9 incluyen la ruptura de doble cadena en el ADN, lo que conduce a mezclas incontroladas de inserciones y deleciones y la baja eficiencia de la corrección de la edición genética. En la actualidad, se conocen unas 75.000 variantes genéticas humanas asociadas a enfermedades que no pueden ser corregidas eficientemente con las técnicas disponibles.\n\nLa herramienta desarrollada por el equipo de Ortega, llamada prime editing o edición de calidad, evita las rupturas de ADN de doble cadena y, en principio, “podría corregir alrededor del 89 % de las variantes genéticas humanas conocidas asociadas a enfermedades”, indican los científicos.\n\nPara lograrlo, el equipo combinó la enzima Cas9 con una segunda enzima llamada transcriptasa inversa . La máquina molecular resultante –cuando se combina con un ARN guía– puede buscar un sitio en el ADN específico y, al mismo tiempo, hacer que la nueva información genética editada reemplace la secuencia de ADN concreta, pero corta una sola hebra de ADN modificada para evitar mutaciones.\n\nResultados espectaculares\n\n“De esta forma, el grupo de Ortega ha conseguido, con resultados espectaculares, editar secuencias sin necesidad de un corte de doble cadena de ADN, uno de los riesgos de la edición genética con las distintas herramientas disponibles”, comenta a Sinc Andrés Villalba , investigador experto en CRISPR en el Centro de Proteómica de la Universidad de Aarhus, que no ha participado en este estudio.\n\nLos investigadores realizaron más de 175 ediciones en células humanas, incluida la corrección de las causas genéticas de la anemia de células falciformes y de la enfermedad de Tay-Sachs . Los resultados apuntan a que “la técnica es más eficaz, produce menos efectos indeseados y tiene menos edición errónea que la llevada a cabo con Cas9”.\n\n“Se puede pensar en el prime editor como un procesador de texto, capaz de buscar secuencias concretas de ADN y de forma muy precisa reemplazarlas con secuencias de ADN editadas”, explicó Ortega en rueda de prensa.\n\nLos autores también señalan que la nueva técnica aún necesita más investigación para comprender sus efectos y mejorar sus capacidades.\n\nEn opinión de Villalba, la propuesta de Ortega y su equipo “es novedosa, prometedora y aporta una nueva herramienta para edición genética. Sin embargo, “desde el punto de vista estructural resulta bastante compleja y habrá que ver si puede ser empleada de forma general. Creo que en el futuro no habrá una única tijera molecular y que se desarrollarán distintas herramientas que se emplearán dependiendo del tipo de edición que se quiera realizar”, resalta."
+   },
+   "output": {
+    "people": [
+     {
+      "name": "Samuel Ortega",
+      "description": "",
+      "gender": "desconocido",
+      "gender_evidence": "",
+      "role": "estudio",
+      "role_evidence": "un estudio liderado por Samuel Ortega",
+      "leads_study": "si",
+      "quotes": [
+       "C4"
+      ],
+      "is_interviewee": false,
+      "quote_origin": "comunicado",
+      "intro_style": "con_credenciales",
+      "position": "",
+      "affiliation": "Instituto Hollis",
+      "honorific": "ninguno",
+      "later_surname": "si",
+      "later_first_name": "no",
+      "in_title_or_lead": "no"
+     },
+     {
+      "name": "Andrés Villalba",
+      "description": "",
+      "gender": "hombre",
+      "gender_evidence": "investigador",
+      "role": "experta_externa",
+      "role_evidence": "que no ha participado en este estudio",
+      "leads_study": "no_aplica",
+      "quotes": [
+       "C2",
+       "C5"
+      ],
+      "is_interviewee": false,
+      "quote_origin": "a_sinc",
+      "intro_style": "con_credenciales",
+      "position": "investigador experto en CRISPR",
+      "affiliation": "Centro de Proteómica de la Universidad de Aarhus",
+      "honorific": "ninguno",
+      "later_surname": "si",
+      "later_first_name": "no",
+      "in_title_or_lead": "no"
+     }
+    ],
+    "collective_quotes": [
+     "C1",
+     "C3"
+    ],
+    "non_quotes": []
+   }
+  },
+  {
+   "source": {
+    "url": "https://www.agenciasinc.es/Noticias/Un-metodo-automatico-de-analisis-de-imagenes-mide-patrones-biologicos",
+    "date": "2015-06-22",
+    "authors": [
+     "DICYT"
+    ],
+    "fuente": "DICYT",
+    "license": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)",
+    "changes": "Nombres de personas, instituciones, sistemas y lugares sustituidos por otros ficticios; algunas frases eliminadas."
+   },
+   "article": {
+    "type": "Noticias",
+    "title": "Un método automático de análisis de imágenes mide patrones biológicos",
+    "antetitulo": "",
+    "lead": "Científicos del Instituto de Biomedicina de Palencia han desarrollado un método para el análisis de imágenes con el objetivo de medir patrones biológicos. En concreto, los que aparecen en el ojo de la mosca del vinagre, usada como modelo en enfermedades neurodegenerativas. El sistema es sencillo, abierto, de bajo coste y permite hacer más rápido los estudios experimentales con este tipo de modelos que ayudan a investigar enfermedades humanas.",
+    "text": "Investigadores del laboratorio Lumen-Lab del Instituto de Biomedicina de Palencia (IBP), centro mixto del Consejo Superior de Investigaciones Científicas-CSIC y la Universidad de Palencia (UPa), han desarrollado un método de análisis de imágenes automatizado para medir de forma cuantitativa la regularidad en los patrones biológicos.\n\nEl sistema, denominado OCULIS, es sencillo, abierto y de bajo coste y permitirá ahorrar tiempo en aquellos estudios experimentales que utilizan modelos como el de la mosca del vinagre ( Drosophila melanogaster ), en el que se han centrado. Este tipo de modelo se usa para avanzar en la investigación y curación de enfermedades humanas.\n\nEl Lumen-Lab, dirigido por los doctores Pilar Montes y Tomás Arribas, trabaja desde hace dos décadas en la investigación de los mecanismos que subyacen a la función del sistema nervioso y, concretamente, a los procesos de neurodegeneración. Para ello, se han centrado en una familia concreta de proteínas: las lipocalinas.\n\nEstas proteínas juegan un papel importante tanto en el desarrollo del sistema nervioso como en la neurodegeneración, y tienen un papel protector frente al estrés oxidativo y al envejecimiento.\n\n“Investigamos el papel de estas proteínas desde el punto de vista funcional en patologías neurodegenerativas. Se trata de ciencia fundamental, probamos si los conocimientos que estamos obteniendo a nivel de función de estas proteínas pueden tener aplicabilidad futura en el tratamiento de alguna de estas enfermedades. Trabajamos para ello con diferentes organismos modelo, como la mosca del vinagre (modelo en invertebrados), el ratón (modelo en vertebrados), así como con muestras humanas de pacientes con enfermedades neurodegenerativas\", detalla el investigador Tomás Arribas.\n\nEl equipo de científicos ha empleado un modelo de retina de la mosca del vinagre para analizar el papel de dos de estas proteínas en el abordaje de enfermedades neurodegenerativas como la ataxia de Friedreich, la enfermedad de Huntington o más recientemente la ataxia espinocerebelosa tipo 1 (SCA1). Pero, ¿cómo determinar la efectividad del tratamiento con estas proteínas de una forma fiable y robusta?\n\n“Aquí nos encontramos con un problema analítico. En la literatura, o bien se ofrece una información cualitativa o bien tienes que entrar en procedimientos experimentales mucho más complejos como la realización de cortes histológicos de la retina de la mosca, lo que conlleva mucho procesado y cuantificar el número de células que están degeneradas debajo del microscopio. Todo eso supone un enorme trabajo sobre todo cuando lo que quieres es analizar muchas moscas para que el estudio sea representativo estadísticamente\", apunta Arribas.\n\nPatrones de luz que el ojo de la mosca puede reflejar\n\nTras darle muchas vueltas, el equipo del IBP pensó en procesar las imágenes de la retina de la mosca que tomaban con el microscopio. Para ello, se optó por analizar los patrones de luz que el ojo de la mosca puede reflejar cuando se está tomando la fotografía. Este parámetro se podía estudiar de forma matemática, y el investigador Iván Recio Lago se encargó de tomar los datos y establecer los pasos del análisis y los parámetros que se pueden obtener de cada imagen.\n\nDespués, la catedrática y directora del Departamento de Estadística e Investigación Operativa de la UPa Elena Barbero trabajó en la optimización del sistema añadiendo un modelo estadístico que predice cómo se comportan los parámetros medidos. El neurocientífico Hugo Ferrer, de la Universidad de Oporto, introdujo la automatización, incluyendo el algoritmo finalmente implementado en un software libre llamado ImageJ.\n\n“Con el sistema OCULIS podemos, por ejemplo, completar un análisis de unas 30 moscas, lo cual supone obtener una gráfica de resultados representativa, fiable y robusta, en apenas cuatro horas, lo que es muy interesante para ahorrar tiempo en estudios en modelos de enfermedades en los que se analiza la efectividad de diversas drogas o en distintas dosis. OCULIS está abierto a la comunidad científica, de forma que podrá ser utilizado libremente por cualquier grupo que utilice el modelo de retina de la mosca del vinagre\", concluye el investigador del IBP Tomás Arribas."
+   },
+   "output": {
+    "people": [
+     {
+      "name": "Pilar Montes",
+      "description": "",
+      "gender": "desconocido",
+      "gender_evidence": "",
+      "role": "estudio",
+      "role_evidence": "El Lumen-Lab, dirigido por los doctores Pilar Montes y Tomás Arribas",
+      "leads_study": "si",
+      "quotes": [],
+      "is_interviewee": false,
+      "quote_origin": "no_aplica",
+      "intro_style": "con_credenciales",
+      "position": "",
+      "affiliation": "Lumen-Lab",
+      "honorific": "doctor",
+      "later_surname": "no_aplica",
+      "later_first_name": "no_aplica",
+      "in_title_or_lead": "no"
+     },
+     {
+      "name": "Tomás Arribas",
+      "description": "",
+      "gender": "hombre",
+      "gender_evidence": "el investigador",
+      "role": "estudio",
+      "role_evidence": "El Lumen-Lab, dirigido por los doctores Pilar Montes y Tomás Arribas",
+      "leads_study": "si",
+      "quotes": [
+       "C1",
+       "C2",
+       "C3"
+      ],
+      "is_interviewee": false,
+      "quote_origin": "no_especificado",
+      "intro_style": "con_credenciales",
+      "position": "",
+      "affiliation": "Lumen-Lab",
+      "honorific": "doctor",
+      "later_surname": "si",
+      "later_first_name": "no",
+      "in_title_or_lead": "no"
+     },
+     {
+      "name": "Iván Recio Lago",
+      "description": "",
+      "gender": "hombre",
+      "gender_evidence": "el investigador",
+      "role": "estudio",
+      "role_evidence": "se encargó de tomar los datos y establecer los pasos del análisis",
+      "leads_study": "no",
+      "quotes": [],
+      "is_interviewee": false,
+      "quote_origin": "no_aplica",
+      "intro_style": "con_credenciales",
+      "position": "investigador",
+      "affiliation": "",
+      "honorific": "ninguno",
+      "later_surname": "no_aplica",
+      "later_first_name": "no_aplica",
+      "in_title_or_lead": "no"
+     },
+     {
+      "name": "Elena Barbero",
+      "description": "",
+      "gender": "mujer",
+      "gender_evidence": "la catedrática",
+      "role": "estudio",
+      "role_evidence": "trabajó en la optimización del sistema",
+      "leads_study": "no",
+      "quotes": [],
+      "is_interviewee": false,
+      "quote_origin": "no_aplica",
+      "intro_style": "con_credenciales",
+      "position": "catedrática y directora del Departamento de Estadística e Investigación Operativa",
+      "affiliation": "UPa",
+      "honorific": "ninguno",
+      "later_surname": "no_aplica",
+      "later_first_name": "no_aplica",
+      "in_title_or_lead": "no"
+     },
+     {
+      "name": "Hugo Ferrer",
+      "description": "",
+      "gender": "hombre",
+      "gender_evidence": "El neurocientífico",
+      "role": "estudio",
+      "role_evidence": "introdujo la automatización",
+      "leads_study": "no",
+      "quotes": [],
+      "is_interviewee": false,
+      "quote_origin": "no_aplica",
+      "intro_style": "con_credenciales",
+      "position": "neurocientífico",
+      "affiliation": "Universidad de Oporto",
+      "honorific": "ninguno",
+      "later_surname": "no_aplica",
+      "later_first_name": "no_aplica",
+      "in_title_or_lead": "no"
+     }
+    ],
+    "collective_quotes": [],
+    "non_quotes": []
+   }
+  },
+  {
+   "source": {
+    "url": "https://www.agenciasinc.es/Noticias/Casi-un-17-de-los-ninos-espanoles-sufre-tics",
+    "date": "2011-09-07",
+    "authors": [
+     "SINC"
+    ],
+    "fuente": "SINC",
+    "license": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)",
+    "changes": "Nombres de personas, instituciones, sistemas y lugares sustituidos por otros ficticios; algunas frases eliminadas."
+   },
+   "article": {
+    "type": "Noticias",
+    "title": "Casi un 17% de los niños españoles sufre tics",
+    "antetitulo": "El estudio se ha publicado en la revista ‘Pediatric Neurology’",
+    "lead": "Los expertos lo confirman: los tics no son un trastorno raro o poco frecuente. El segundo estudio realizado en España hasta la fecha, y el primero de gran envergadura, revela la prevalencia del 16,86% de estos trastornos motores en la población infantil. La incidencia es mayor en los niños que en las niñas, y suelen desaparecer o disminuir con la edad.",
+    "text": "“Los tics son un trastorno muy frecuente”, explica a SINC Nuria Saldaña, investigadora en el Hospital Comarcal del Duero y autora principal de un nuevo trabajo epidemiológico sobre los tics.\n\n“Antes se creía que era un trastorno raro, y como únicamente se estudiaba en pacientes que consultaban por ello, solo se veían tics graves. Ahora se ha visto que la mayoría son trastornos leves, que no tienen repercusión funcional”, afirma Saldaña.\n\nAunque se han realizado diferentes estudios epidemiológicos, este es el segundo que se hace en España y posee un mayor tamaño poblacional que el primero, que solo registró datos de dos centros escolares.\n\nEste trabajo determina la prevalencia de los trastornos de tic en una muestra de 1.158 escolares en la provincia de Soria, aunque las cifras son, según los autores, extrapolables al resto de la población española.\n\nLos resultados, publicados en la revista Pediatric Neurology , revelan que mientras en las escuelas ordinarias un 16,86% de los estudiantes tenían tics, el número ascendía hasta el 20,37% en los centros de educación especial. En ambos casos fue más frecuente en los niños que en las niñas.\n\nLos expertos analizaron también la existencia de otros trastornos asociados, como el trastorno por déficit de atención. Los tics fluctúan y aumentan en un contexto de estrés, como pueden ser problemas en la familia o en la escuela. Los diagnósticos más graves fueron tics motores crónicos (6,07%) y síndrome de Tourette (5,26%).\n\n“Existe todavía mucho desconocimiento, incluso entre el personal médico, porque se cree que para poder diagnosticar a un paciente con tics tiene que tener asociada coprolalia –insultos, palabras malsonantes–“, subraya Saldaña. “De hecho, está clasificado como una enfermedad rara. Tenemos que considerarla frecuente para que se diagnostique correctamente”.\n\nUn problema neurológico\n\nLos trastornos de tic son un trastorno hereditario en el desarrollo neurológico de la infancia, caracterizado por movimientos repentinos, repetitivos y estereotipados o sonidos, con un resultado longitudinal de mejora gradual en la mayoría de los sujetos. “Son el trastorno del movimiento más común en la población infanto-juvenil”, afirma la investigadora."
+   },
+   "output": {
+    "people": [
+     {
+      "name": "Nuria Saldaña",
+      "description": "",
+      "gender": "mujer",
+      "gender_evidence": "investigadora",
+      "role": "estudio",
+      "role_evidence": "autora principal de un nuevo trabajo epidemiológico sobre los tics",
+      "leads_study": "no",
+      "quotes": [
+       "C1",
+       "C2",
+       "C3",
+       "C4",
+       "C5"
+      ],
+      "is_interviewee": false,
+      "quote_origin": "a_sinc",
+      "intro_style": "con_credenciales",
+      "position": "investigadora",
+      "affiliation": "Hospital Comarcal del Duero",
+      "honorific": "ninguno",
+      "later_surname": "si",
+      "later_first_name": "no",
+      "in_title_or_lead": "no"
+     }
+    ],
+    "collective_quotes": [],
+    "non_quotes": []
+   }
+  }
+ ]
+}

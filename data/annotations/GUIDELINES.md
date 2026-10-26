@@ -22,26 +22,28 @@ Principles:
 
 | Column | Values | `persona` rows | `colectivo` row | `ninguna` row |
 |---|---|---|---|---|
-| `article_id`, `title` | pre-filled | ✓ | ✓ | ✓ |
+| `article_id`, `article` | pre-filled (grey): the id and the full text | ✓ | ✓ | ✓ |
 | `row_type` | `persona` · `colectivo` · `ninguna` | ✓ | ✓ | ✓ |
 | `name` | free text (empty if unnamed) | ✓ | | |
 | `description` | free text, only for unnamed people | ✓ | | |
 | `gender` | `mujer` · `hombre` · `desconocido` | ✓ | | |
 | `gender_evidence` | literal words from the text | ✓ | | |
 | `role` | `estudio` · `experta_externa` · `paciente_testimonio` · `otro` | ✓ | | |
-| `leads_study` | `si` · `no` (only if `role = estudio`) | ✓ | | |
+| `leads_study` | `si` · `no` · `no_aplica` (`no_aplica` if `role` is not `estudio`) | ✓ | | |
 | `quotes` | literal quotes separated by ` \|\| ` | ✓ | ✓ | |
 | `quote_origin` | `a_sinc` · `comunicado` · `publicacion` · `no_especificado` · `no_aplica` | ✓ | | |
 | `intro_style` | `con_credenciales` · `solo_nombre` · `no_aplica` | ✓ | | |
 | `honorific` | `doctor` · `profesor` · `otro` · `ninguno` | ✓ | | |
-| `later_reference` | `apellido` · `nombre` · `completo` · `mixto` · `ninguna` · `no_aplica` | ✓ | | |
+| `later_surname` | `si` · `no` · `no_aplica` | ✓ | | |
+| `later_first_name` | `si` · `no` · `no_aplica` | ✓ | | |
 | `in_title_or_lead` | `si` · `no` | ✓ | | |
 | `notes` | free text: doubts, wording | optional | optional | optional |
 
 ## 1. Which text to read
 
-Read, in the *Articles* sheet: **title, antetítulo (kicker), entradilla (lead) and body**. This is
-exactly the text the LLM receives. The SINC link is for context only: the web page also shows
+Read the `article` column, on the left of your sheet: it holds **title, antetítulo (kicker),
+entradilla (lead) and body**, and stays next to the rows you are filling in. This is exactly the
+text the LLM receives. The SINC link is for context only: the web page also shows
 pull quotes, photo captions and boxes that we have removed, and those are **not annotated**.
 
 Never annotate: the article byline, the bibliographic *Referencia*, photo credits, the *Fuente* line.
@@ -60,17 +62,33 @@ One row per **real, specific individual** in the text, named or unnamed.
 | Each member of a named group: "los pediatras Miguel Zafra Anta y Víctor Manuel García Nieto" → **two rows** | Fictional characters; eponyms ("enfermedad de Alzheimer", "efecto Doppler") |
 | | Names that appear only in the *Referencia* or the byline |
 
-- The same person mentioned several times ("María Teresa Ruiz Cantero… la experta… Ruiz Cantero") is **one row**.
+- The same person mentioned several times ("María Teresa Ruiz Cantero… la experta… Ruiz Cantero") is **one row**,
+  also when the later mention is only a role ("concluye el investigador", "este científico").
 - If an unnamed person is named later, it is the same row (with the name).
 - **Unnamed person:** leave `name` empty and copy into `description` the literal words used for them ("una paciente de 54 años").
 - **Special rows, at most one of each per article:**
-  - `row_type = colectivo`: if there are quotes attributed to collectives ("afirman los autores en un comunicado"), one row with those quotes in `quotes`. This tells us how many quoted words have no person attached.
+  - `row_type = colectivo`: one row with **every quote that is not attributed to a single person**, in `quotes`:
+    groups ("afirman los autores", "según el equipo"), institutions ("advierte UNFPA", "señala la OMS")
+    and documents ("el informe explica", "según el estudio", "el comunicado indica"). This tells us how
+    many quoted words come from non-person sources. Only **text in quotation marks** goes here: a
+    sentence without quotation marks is never a quote, even if it says "según la OMS".
+  - Example: in "las mujeres negras «son sistemáticamente desatendidas o maltratadas», según el informe",
+    the quote goes in the `colectivo` row. In "«La lacra del racismo continúa…», señaló la directora
+    ejecutiva de UNFPA, Natalia Kanem", it goes in Natalia Kanem's `persona` row.
+  - A person's testimony quoted inside a report ("el testimonio de una afrobrasileña: «Notas que…»")
+    belongs to that person (`persona` row, `quote_origin = publicacion`), not to the `colectivo` row.
   - `row_type = ninguna`: if the article has no people and no collective quotes. This tells us the article was annotated.
 
 ## 3. Gender
 
 Values: `mujer` · `hombre` · `desconocido`. In `gender_evidence`, copy **the exact word or phrase**
-from the text that shows it.
+from the text that shows it. The evidence is the key of this field: with no valid evidence, the
+gender is `desconocido`.
+
+The evidence must refer to **this** person: a word that agrees with her, in her introduction or in
+an unambiguous reference to her, not a nearby word about someone or something else.
+- In "la investigadora Ana Ruiz y Pedro Gil", "la investigadora" is evidence for Ana Ruiz, not for Pedro Gil.
+- In "la investigación, liderada por Pedro Gil", "liderada" agrees with "la investigación", not with him: not evidence.
 
 **Valid evidence** (unambiguously referring to that person):
 - Article + noun: "**la** historiadora Cristina Domenech", "**el** investigador Nacho Moreno".
@@ -103,6 +121,11 @@ right next to it ("—dice—").
   quotes with ` || `. The script counts the words; you do not have to.
 - Partial quotes inside a sentence count if attributed ("según Ruiz Cantero, «se contagian»"),
   and so do quotes from written works (books, papers).
+- **Attribution by reference:** "«…», concluye el investigador", "«…», comenta la experta", "«…»,
+  añade" (no subject), or a quote that follows another one with no new speaker, belong to the person
+  they refer to (usually the last one named), never to the `colectivo` row.
+- If the attribution interrupts the quote ("«Afortunadamente», comenta la investigadora, «pero es que…»"),
+  they are two quotes.
 - **Do not count:** quotation marks around a term ('sexo débil', "a raya"), titles of works,
   indirect speech without quotation marks ("explicó que…"). The person is still annotated, with no quotes.
 - **Interviews:** the interviewee's answers (paragraphs that are not `[PREGUNTA]`, after the first
@@ -135,13 +158,21 @@ Four roles. Decide in this order; the **first** role that fits wins:
    WHO, spokespeople), historical figures, authors cited through their books or other studies,
    people who are only mentioned (a politician, a celebrity, the inventor of a technique…).
 
-**`leads_study`** (only when `role = estudio`; leave empty otherwise):
+**`leads_study`** (only when `role = estudio`; `no_aplica` otherwise). The question is not
+"does she lead the study?" but "**does the text present her as leading it?**":
 - `si` **only if the text explicitly presents the person as leading the study**: "lidera",
-  "dirige", "coordina", "el grupo liderado / dirigido / coordinado por", "investigador/a
-  principal", "jefe/a del grupo / laboratorio que ha realizado el estudio", "autor/a sénior",
-  "último/a autor/a".
+  "dirige", "coordina", "el grupo liderado / dirigido / coordinado por", "director/a del
+  trabajo", "investigador/a principal", "autor/a sénior", "último/a autor/a".
+- "jefe/a" or "coordinador/a del grupo X" (or of a laboratory) is `si` **only if the text says
+  that group X carried out or led the study**, even in another paragraph. Example: Soler-Palacín
+  is "jefe del Grupo de Investigación de Infección en el Paciente Pediátrico…", and later "los
+  estudios … han sido liderados por los grupos de Investigación de Infección en el Paciente
+  Pediátrico… y de Inmunología Diagnóstica" → `si`. If the text only says that the study was done
+  by "investigadores del IMIM", being the coordinator of an IMIM group is not enough → `no`.
 - `no` in every other case, including "primer/a autor/a", "autor/a principal", "coautor/a",
-  "autor/a del estudio", "investigador/a del equipo".
+  "autor/a del estudio", "investigador/a del equipo", **and when the text does not say who
+  leads the study**. There is no separate "not specified" value: for this metric, not being
+  presented as the leader and being presented as not the leader are the same.
 
 If you are unsure whether the wording means leadership, choose `no` and copy the wording into `notes`.
 
@@ -162,11 +193,20 @@ person is presented to the reader when she enters the article.
 - `doctor`: *Dr.*, *Dra.*, "el doctor X", "la doctora X".
 - `profesor`: "el profesor X", "la profesora X" used as a title (if followed by "de…" it is a position → `ninguno`).
 - `otro`: another title.
-- `ninguno`.
+- `ninguno`. A profession or position before the name is **not** a title: "la investigadora X",
+  "el biólogo X", "el coordinador X" → `ninguno` (that information goes in `intro_style`).
 
-**`later_reference`**: how the person is **named** in later mentions (pronouns and roles such as "la experta" do not count):
-- `apellido` ("dice Ruiz Cantero"), `nombre` ("dice Laura"), `completo` (full name repeated),
-- `mixto` (different forms), `ninguna` (not named again), `no_aplica` (unnamed).
+**How the person is named after the first mention**: two yes/no questions, which together cover
+every later mention. Only names count: pronouns, roles ("la experta") and the full name repeated
+do not count for either.
+- **`later_surname`**: is she called **by her surname alone** at least once? ("dice Ruiz Cantero") → `si` / `no`.
+- **`later_first_name`**: is she called **by her first name alone** at least once? ("dice Laura") → `si` / `no`.
+- Both can be `si` (called "Laura" once and "Morán" four times). Named again, but always with
+  the full name → `no` in both.
+- `no_aplica` in both: unnamed people, **and people who are never named again** after the
+  first mention (later mentions only as "la investigadora", "la experta" or a pronoun count as
+  not named again). This way the metric reads "among the people named again, how many are
+  called by surname / by first name", and does not depend on how often a person is mentioned.
 
 **`in_title_or_lead`**: `si` if the person appears (by name or by an unambiguous reference to
 them, e.g. "la psicóloga Timanfaya Hernández") in the title, antetítulo or entradilla; otherwise `no`.
@@ -181,8 +221,10 @@ Computed by the script, not annotated: number of quoted words, and whether the p
 2. **Comparison:** when all three have finished, we compare the shared articles together and adjust
    these guidelines. Two articles are too few to measure agreement (kappa): they are for calibration only.
 3. **Individual articles (marked `single`):** each annotator works on her assigned articles in her
-   own sheet (Gaia 8, Tamara 20, Giulia 20). One row per person, in order of first appearance;
-   repeat `article_id` on every row of the article.
+   own sheet (Gaia 8, Tamara 20, Giulia 20). Each article is a **block of rows**, with the text on
+   the left and the `article_id` already in every row. One row per person, in order of first
+   appearance; leave unused rows empty. If a block needs more rows, insert them **inside** the
+   block and copy the `article_id`.
 4. **Doubts:** never guess; pick the most cautious value and write the doubt in `notes`.
 5. Rough time: 6-8 minutes for a typical article (about 650 words, 2-3 people); the shared
    articles take longer (10-15 minutes) while you learn the rules, long features up to 20.

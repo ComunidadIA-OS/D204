@@ -17,12 +17,13 @@ Uso:  python -m src.annotation_sample
 
 import csv
 import json
+import math
 import random
 import re
 from collections import defaultdict
 
 from openpyxl import Workbook
-from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.worksheet.datavalidation import DataValidation
 
 from src.config import load_config
@@ -32,39 +33,43 @@ EXTRA = 4
 N_SHARED = 2
 # anotadora -> (número de artículos individuales, split); el orden fija la asignación
 ANNOTATORS = {"Gaia": (5, "dev"), "Tamara": (20, "test"), "Giulia": (20, "test")}
-MAX_ROWS = 2000  # filas con desplegables en cada hoja de anotación
+# filas por artículo: las necesarias para que el texto quepa con filas de ROW_HEIGHT puntos
+# (y al menos las citas + 3); si faltan, se insertan dentro del bloque
+MIN_BLOCK_ROWS, MAX_BLOCK_ROWS = 5, 40
+ROW_HEIGHT = 45  # puntos: unas tres líneas de texto en las columnas de anotación
+SPARE_ROWS = 300  # filas extra con desplegables al final, para las filas insertadas
+TEXT_WIDTH = 100  # ancho de la columna del texto
+CHARS_PER_LINE = 120  # aproximado, para calcular la altura del texto
+LINE_HEIGHT = 13  # puntos por línea
 
 # columnas de anotación -> valores permitidos (None = texto libre); ver GUIDELINES.md
 COLUMNS = {
-    "article_id": None,
-    "title": None,
     "row_type": ["persona", "colectivo", "ninguna"],
     "name": None,
     "description": None,
     "gender": ["mujer", "hombre", "desconocido"],
     "gender_evidence": None,
     "role": ["estudio", "experta_externa", "paciente_testimonio", "otro"],
-    "leads_study": ["si", "no"],
+    "leads_study": ["si", "no", "no_aplica"],
     "quotes": None,
     "quote_origin": ["a_sinc", "comunicado", "publicacion", "no_especificado", "no_aplica"],
     "intro_style": ["con_credenciales", "solo_nombre", "no_aplica"],
     "honorific": ["doctor", "profesor", "otro", "ninguno"],
-    "later_reference": ["apellido", "nombre", "completo", "mixto", "ninguna", "no_aplica"],
+    "later_surname": ["si", "no", "no_aplica"],
+    "later_first_name": ["si", "no", "no_aplica"],
     "in_title_or_lead": ["si", "no"],
     "notes": None,
 }
-WIDTHS = {"article_id": 14, "title": 40, "name": 24, "description": 26, "gender_evidence": 22,
-          "quotes": 60, "notes": 40}
+WIDTHS = {"name": 22, "description": 22, "gender_evidence": 18, "quotes": 50, "notes": 30}
 
 EXAMPLE = {
-    "article_id": "(ejemplo)", "title": "De histéricas a hipersexuales: enfermedades femeninas…",
     "row_type": "persona", "name": "María Teresa Ruiz Cantero", "description": "",
-    "gender": "mujer", "gender_evidence": "catedrática", "role": "experta_externa", "leads_study": "",
+    "gender": "mujer", "gender_evidence": "catedrática", "role": "experta_externa", "leads_study": "no_aplica",
     "quotes": "se mantiene el prejuicio de que las mujeres son débiles, sensibles, que aguantan menos, "
               "que se quejan a la mínima. Lo que se llamó mucho tiempo ‘una histérica || "
               "Esto es muy grave",
     "quote_origin": "a_sinc", "intro_style": "con_credenciales", "honorific": "ninguno",
-    "later_reference": "apellido", "in_title_or_lead": "no",
+    "later_surname": "si", "later_first_name": "no", "in_title_or_lead": "no",
     "notes": "Ejemplo abreviado: en el artículo tiene más citas, que irían todas en quotes. "
              "Presentación: 'cuenta a SINC María Teresa Ruiz Cantero, catedrática de Medicina "
              "Preventiva y Salud Pública de la Universidad de Alicante'",
@@ -75,6 +80,7 @@ BOLD = Font(name="Arial", size=10, bold=True)
 HEADER_FILL = PatternFill("solid", fgColor="D9E1F2")
 REFERENCE_FILL = PatternFill("solid", fgColor="F2F2F2")  # columnas precargadas, no se editan
 WRAP = Alignment(wrap_text=True, vertical="top")
+BLOCK_TOP = Border(top=Side(style="medium", color="808080"))  # separa un artículo del siguiente
 
 
 def draw_sample(corpus: list[dict], seed: int) -> list[dict]:
@@ -152,9 +158,9 @@ def instructions_sheet(wb: Workbook) -> None:
         ("How to use this workbook", True),
         ("Full rules: data/annotations/GUIDELINES.md (read it before starting).", False),
         ("", False),
-        ("1. Read the article in the 'Articles' sheet (title, antetítulo, lead, text). The SINC link is context only.", False),
-        ("2. Annotate in YOUR sheet (Gaia, Tamara, Giulia). Each assigned article already has one row with article_id and title (grey: do not edit).", False),
-        ("3. One row per person. For more people in the same article, insert rows below and copy the article_id.", False),
+        ("1. Work in YOUR sheet (Gaia, Tamara, Giulia). Each article is a block of rows: the full text (title, antetítulo, lead, body) is on the left, the rows to fill are on the right.", False),
+        ("2. Grey columns (article_id, article) are pre-filled: do not edit them. The SINC link is context only.", False),
+        ("3. One row per person; leave unused rows empty. If an article needs more rows, insert them INSIDE its block and copy the article_id.", False),
         ("4. Articles with no people: row_type = ninguna. Quotes attributed to collectives: one row with row_type = colectivo.", False),
         ("5. Use the dropdowns. Free-text columns: name, description, gender_evidence, quotes, notes.", False),
         ("6. quotes: copy the literal text, without quotation marks, separated by ' || '. Interviews: write RESPUESTAS.", False),
@@ -167,10 +173,10 @@ def instructions_sheet(wb: Workbook) -> None:
     for text, bold in lines:
         ws.append([text])
         ws.cell(ws.max_row, 1).font = BOLD if bold else FONT
-    ws.append(list(COLUMNS))
+    ws.append(["article_id", "article", *COLUMNS])
     for cell in ws[ws.max_row]:
         cell.font, cell.fill = BOLD, HEADER_FILL
-    ws.append([EXAMPLE[c] for c in COLUMNS])
+    ws.append(["(ejemplo)", "De histéricas a hipersexuales: enfermedades femeninas…", *[EXAMPLE[c] for c in COLUMNS]])
     for cell in ws[ws.max_row]:
         cell.font, cell.alignment = FONT, WRAP
 
@@ -183,46 +189,66 @@ def instructions_sheet(wb: Workbook) -> None:
             ws.cell(ws.max_row, 1).font = BOLD
             ws.cell(ws.max_row, 2).font = FONT
     ws.column_dimensions["A"].width = 18
-    for i, column in enumerate(COLUMNS, 1):
-        if i > 1:
-            ws.column_dimensions[ws.cell(1, i).column_letter].width = WIDTHS.get(column, 16)
+    ws.column_dimensions["B"].width = 40
+    for i, column in enumerate(COLUMNS, 3):
+        ws.column_dimensions[ws.cell(1, i).column_letter].width = WIDTHS.get(column, 16)
 
 
-def articles_sheet(wb: Workbook, rows: list[dict], articles: dict) -> None:
-    ws = wb.create_sheet("Articles")
-    headers = ["article_id", "group", "assigned_to", "year", "type", "url", "title", "antetitulo", "lead", "text"]
-    style_header(ws, headers)
-    for r in rows:
-        a = articles[r["id"]]
-        ws.append([r["id"], r["group"], r["annotators"], int(r["year"]), r["type"], r["url"],
-                   a["title"], a["antetitulo"], a["lead"], a["text"]])
-    for row in ws.iter_rows(min_row=2):
-        for cell in row:
-            cell.font, cell.alignment = FONT, WRAP
-    for letter, width in zip("ABCDEFGHIJ", [14, 8, 13, 6, 11, 30, 40, 30, 60, 120]):
-        ws.column_dimensions[letter].width = width
+def article_block_text(r: dict, a: dict) -> str:
+    parts = [f"[{r['group']}] {r['year']} · {r['type']}", r["url"], "", f"TÍTULO: {a['title']}"]
+    if a["antetitulo"]:
+        parts.append(f"ANTETÍTULO: {a['antetitulo']}")
+    parts += ["", f"ENTRADILLA: {a['lead']}", "", a["text"]]
+    return "\n".join(parts)
+
+
+def text_height(text: str) -> float:
+    lines = sum(max(1, math.ceil(len(line) / CHARS_PER_LINE)) for line in text.split("\n"))
+    return lines * LINE_HEIGHT + 10
 
 
 def annotator_sheet(wb: Workbook, name: str, rows: list[dict], articles: dict) -> None:
+    """Un bloque de filas por artículo: el texto en una celda combinada a la izquierda (columna B,
+    fija al desplazarse) y las filas de personas a la derecha, con el article_id ya puesto."""
     ws = wb.create_sheet(name)
-    style_header(ws, list(COLUMNS))
-    order = {"shared": 0, "single": 1}
-    mine = [r for r in rows if r["annotators"] in ("all", name)]
-    for r in sorted(mine, key=lambda r: order[r["group"]]):
-        ws.append([r["id"], f"[{r['group']}] {articles[r['id']]['title']}"])
-    for row in ws.iter_rows(min_row=2, max_row=MAX_ROWS, max_col=len(COLUMNS)):
-        for cell in row:
-            cell.font, cell.alignment = FONT, WRAP
-        row[0].fill = row[1].fill = REFERENCE_FILL
+    ws.append(["article_id", "article", *COLUMNS])
+    for cell in ws[1]:
+        cell.font, cell.fill, cell.alignment = BOLD, HEADER_FILL, WRAP
+    ws.freeze_panes = "C2"
 
-    for i, (column, values) in enumerate(COLUMNS.items(), 1):
+    order = {"shared": 0, "single": 1}
+    mine = sorted((r for r in rows if r["annotators"] in ("all", name)), key=lambda r: order[r["group"]])
+    start = 2
+    for r in mine:
+        a = articles[r["id"]]
+        text = article_block_text(r, a)
+        height = text_height(text)
+        n = min(MAX_BLOCK_ROWS, max(MIN_BLOCK_ROWS, quote_count(a["text"]) + 3, math.ceil(height / ROW_HEIGHT)))
+        end = start + n - 1
+        for row in range(start, end + 1):
+            ws.cell(row, 1, r["id"])
+            for col in range(1, len(COLUMNS) + 3):
+                cell = ws.cell(row, col)
+                cell.font, cell.alignment = FONT, WRAP
+                if row == start:
+                    cell.border = BLOCK_TOP
+            ws.cell(row, 1).fill = REFERENCE_FILL
+            ws.row_dimensions[row].height = max(ROW_HEIGHT, height / n)
+        ws.cell(start, 2, text).fill = REFERENCE_FILL
+        ws.merge_cells(start_row=start, start_column=2, end_row=end, end_column=2)
+        start = end + 1
+
+    last = start - 1 + SPARE_ROWS
+    ws.column_dimensions["A"].width = 13
+    ws.column_dimensions["B"].width = TEXT_WIDTH
+    for i, (column, values) in enumerate(COLUMNS.items(), 3):
         letter = ws.cell(1, i).column_letter
-        ws.column_dimensions[letter].width = WIDTHS.get(column, 16)
+        ws.column_dimensions[letter].width = WIDTHS.get(column, 14)
         if values:
             dv = DataValidation(type="list", formula1='"' + ",".join(values) + '"', allow_blank=True,
                                 showErrorMessage=True, errorTitle="Invalid value",
                                 error="Choose a value from the list (see Instructions).")
-            dv.add(f"{letter}2:{letter}{MAX_ROWS}")
+            dv.add(f"{letter}2:{letter}{last}")
             ws.add_data_validation(dv)
 
 
@@ -246,7 +272,6 @@ def main() -> None:
 
     wb = Workbook()
     instructions_sheet(wb)
-    articles_sheet(wb, rows, articles)
     for name in ANNOTATORS:
         annotator_sheet(wb, name, rows, articles)
     wb.save(out_dir / "annotation_sheet.xlsx")

@@ -2,11 +2,24 @@
 
 llm:
   # Cualquier endpoint compatible con la API de OpenAI (OVH AI Endpoints, vLLM, Ollama...)
-  base_url: https://oai.endpoints.kepler.ai.cloud.ovh.net/v1
-  model: gpt-oss-120b
+  # Desarrollo: Ollama local. Producción: OVH AI Endpoints con
+  #   base_url: https://oai.endpoints.kepler.ai.cloud.ovh.net/v1   model: gpt-oss-120b
+  base_url: https://ollama.tinman.lst/v1/
+  model: qwen3.8:27b
   # Nombre de la variable de entorno que contiene la API key (la clave nunca va en este fichero)
   api_key_env: LLM_API_KEY
   temperature: 0
+  # Certificado de una CA propia para HTTPS (opcional; vacío = CAs del sistema)
+  ca_cert: ~/certs/ca-lst.crt
+  timeout_seconds: 900
+  # Límite de tokens generados (razonamiento incluido): corta las respuestas que no terminan
+  max_tokens: 4000
+  # json_schema = salida forzada al esquema de src/schema.py; json_object = solo JSON válido
+  response_format: json_schema
+  # null = lo que haga el modelo por defecto; "none" desactiva el razonamiento (Ollama); low/medium/high
+  reasoning_effort: "none"
+  # true = añade los ejemplos de src/fewshot.json como turnos previos de la conversación
+  few_shot: false
 
 scrape:
   start_url: https://www.agenciasinc.es/Salud
