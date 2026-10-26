@@ -1,0 +1,37 @@
+# Configuración del pipeline. Todas las claves son obligatorias.
+
+llm:
+  # Cualquier endpoint compatible con la API de OpenAI (OVH AI Endpoints, vLLM, Ollama...)
+  base_url: https://oai.endpoints.kepler.ai.cloud.ovh.net/v1
+  model: gpt-oss-120b
+  # Nombre de la variable de entorno que contiene la API key (la clave nunca va en este fichero)
+  api_key_env: LLM_API_KEY
+  temperature: 0
+
+scrape:
+  start_url: https://www.agenciasinc.es/Salud
+  delay_seconds: 1
+  user_agent: "sinc-mujeres-salud/0.1 (proyecto de investigación Mujeres por la IA Abierta)"
+
+sample:
+  # Muestra estratificada: per_year artículos al azar por año; buffer extra para
+  # cubrir artículos en la frontera entre años, sin licencia CC o con errores
+  first_year: 2008
+  last_year: 2026
+  per_year: 150
+  buffer: 20
+  seed: 42
+
+paths:
+  index: data/index.csv            # todas las URLs de la lista Salud (publicable)
+  year_bounds: data/year_bounds.json
+  sample: data/sample.csv          # URLs de la muestra (publicable)
+  corpus: data/corpus.csv          # 150 artículos por año, los que se analizan
+  articles: data/articles.jsonl    # textos completos (NO se publica)
+  raw: data/raw                    # HTML comprimido (NO se publica)
+  fetch_errors: data/fetch_errors.jsonl
+  mentions: data/mentions.jsonl
+  cache: data/cache
+  annotations: data/annotations
+  metrics: data/metrics
+  reports: reports
