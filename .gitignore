@@ -1,0 +1,19 @@
+# Entorno
+.venv/
+__pycache__/
+*.pyc
+.env
+
+# Textos completos y datos por persona: no se publican (ver PROJECT.md, sección 8)
+data/articles.jsonl
+data/mentions.jsonl
+data/cache/
+data/raw/
+data/fetch_errors.jsonl
+
+# Context
+PROJECT.md
+
+# Anotaciones: nombres y género de personas reales; textos completos de los artículos
+data/annotations/*.xlsx
+data/annotations/annotated/
