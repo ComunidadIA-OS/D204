@@ -13,7 +13,7 @@ llm:
   ca_cert: ~/certs/ca-lst.crt
   timeout_seconds: 900
   # Límite de tokens generados (razonamiento incluido): corta las respuestas que no terminan
-  max_tokens: 4000
+  max_tokens: 6000
   # json_schema = salida forzada al esquema de src/schema.py; json_object = solo JSON válido
   response_format: json_schema
   # null = lo que haga el modelo por defecto; "none" desactiva el razonamiento (Ollama); low/medium/high

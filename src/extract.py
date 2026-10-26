@@ -72,8 +72,12 @@ def call_settings(config: dict) -> dict:
 
 
 def run_id(config: dict) -> str:
-    """Prompt y parámetros de la llamada: identifica una ejecución en la caché y en mentions.jsonl."""
-    settings = hashlib.sha256(json.dumps(call_settings(config), sort_keys=True).encode()).hexdigest()[:6]
+    """Prompt y parámetros de la llamada: identifica una ejecución en la caché y en mentions.jsonl.
+
+    max_tokens no cuenta: una respuesta completa no depende del límite (las cortadas no se reutilizan).
+    """
+    settings = {k: v for k, v in call_settings(config).items() if k != "max_tokens"}
+    settings = hashlib.sha256(json.dumps(settings, sort_keys=True).encode()).hexdigest()[:6]
     return f"{PROMPT_VERSION}-{settings}"
 
 
