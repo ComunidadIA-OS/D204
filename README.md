@@ -33,33 +33,37 @@ LLM's error on a hand-annotated test set, corrects the results for that error, a
 ## Main results
 
 Women are about **four in ten** of the voices in SINC health news, and they hold the prominent positions in the same
-proportion. The share has grown by about ten points since 2008, but it is still below parity, and close to the share
-of women among research staff in Spain (39.6 %, *Científicas en Cifras 2025*).
+proportion. The share has grown by about ten points since 2008, but it is still below parity. It matches the share of
+women among all researchers in Spain (39.6 %, *Científicas en Cifras 2025*), but in medical and health sciences women
+are the majority (54 %, *Eurostat, researchers by field of science, Spain, 2023, headcount*). SINC health news therefore
+reflects the research system as a whole rather than the field it covers: compared with the field, it leaves out
+roughly one in four of the women it could quote.
 
-Corrected estimates (LLM value minus the LLM's error on the test set) with their 95 % interval; the raw LLM value is
-in parentheses. "% women" is always women / (women + men), among the people whose gender the text makes explicit.
+Corrected estimates (LLM value minus the LLM's error on the test set) with their 95 % interval are reported in the table below, with the raw LLM value
+in parentheses. The intervals are wide mainly because the test set is small (40 articles, 79 annotated people, 28 of them women):
+the uncertainty on the LLM's error, not the corpus sample, accounts for most of their width. A larger hand-annotated test set would narrow them.
+
+> "% women" is always women / (women + men), among the people whose gender the text makes explicit.
 
 | Metric | Result | Confidence |
 |---|---|---|
 | P1: % women among the people mentioned | **38.8 %** [33.8, 44.5] (LLM 35.2) | high |
 | P2: % women among the people quoted | **39.7 %** [35.5, 44.8] (LLM 36.2) | high |
-| P3: articles with no women / with a woman quoted | **44.9 %** [36.9, 50.9] / **47.3 %** [41.4, 55.3] | high |
-| R1: % women among the first person quoted | **37.9 %** [31.6, 45.3]: same as P2, women are not put in second place | high |
-| R2: % women among the people of the study | **37.6 %** [29.0, 45.8] | high |
+| P3.a: % articles with no women | **44.9 %** [36.9, 50.9] (LLM 49.6) | high |
+| P3.b: % articles with at least one woman quoted directly | **47.3 %** [41.4, 55.3] (LLM 42.7) | high |
+| R1: % women among the first person quoted | **37.9 %** [31.6, 45.3] (LLM 35.6): compatible with P2, women are not put in second place | high |
+| R2: % women among the people of the study | **37.6 %** [29.0, 45.8] (LLM 35.6) | high |
 | R2: % women among those who lead the study | **34.8 %** [19.0, 53.5] (LLM 28.9): a gap with the study members is not settled | low |
-| R3: introduced with credentials, gap women − men | **+2.1 pp** [−2.6, +9.3]: no difference (women 96.7 %, men 97.5 %) | high |
+| R3: introduced with credentials, gap women − men | **+2.1 pp** [−2.6, +9.3] (LLM −0.8): no difference, the correction flips the sign but both intervals contain zero | high |
 | D1: topic | most women quoted in *Salud pública* (44 %), fewest in *Epidemiología* (31 %) and *Medicina interna* (28 %) | medium |
-| D1: source | SINC's own pieces 35 % vs press-office pieces 38 % of women quoted, overlapping intervals: the gap is not created by the republished press releases | medium |
-| D2: trend 2008-2013 → 2020-2026 | P1 +10.4 pp [+6.3, +14.6], P2 +9.8 pp, R1 +6.8 pp; articles with a woman quoted 31 % → 55 % | medium-high |
-
-The share of articles with no women matches what chance gives in every period (within ±2 pp): articles have few
-voices each (about two people of known gender), and women are not concentrated in a few articles.
+| D1: source | SINC's own pieces 35 % vs press-office pieces 38 % of women quoted, overlapping intervals | medium |
+| D2: trend 2008-2013 → 2020-2026 | P1 +10.4 pp, P2 +9.8 pp, R1 +6.8 pp | medium-high |
 
 D1 and D2 are LLM values: the test set is too small to measure the error for each topic, source or period, so only
 their differences are read, not their levels.
 
 **Not reported as findings:** P3 "women mentioned but not quoted" (2 test cases), the roles `experta_externa`,
-`paciente_testimonio` and `otro` (too few test cases, or the LLM confuses them), and single years (±6-8 pp).
+`paciente_testimonio` and `otro` (too few test cases, or the LLM confuses them), and single years.
 
 ![Corrected estimates of every metric](reports/figures/results_summary.png)
 
@@ -87,7 +91,7 @@ src/dashboard.py         Streamlit dashboard, reads only the aggregate tables in
 
 ## Metrics
 
-Seven metrics, chosen to answer the question with as few measures as possible, each one checked against the manual
+Seven metrics, chosen to answer the question, each one checked against the manual
 annotation. P1 to R3 rest on the people extracted by the LLM; D1 and D2 break them down by SINC's own metadata.
 
 **Presence: who appears and who speaks**
@@ -96,7 +100,6 @@ annotation. P1 to R3 rest on the people extracted by the LLM; D1 and D2 break th
 - **P2.** % women among the people **quoted directly** (in quotation marks, or interviewed).
 - **P3.** **Women in the article**, one category per article with at least one person of known gender: *no women*,
   *women mentioned but not quoted* (present without a voice), *women quoted*. The three shares add up to 100 %.
-  "No women" is compared with what chance gives, with the share of P1 and the real number of people in each article.
 
 **Prominence: in which position**
 
@@ -117,12 +120,11 @@ annotation. P1 to R3 rest on the people extracted by the LLM; D1 and D2 break th
   single year has an interval of ±6-8 pp.
 
 **Uncertainty and correction.** Every metric is reported in three steps: the LLM's value on the corpus with a
-bootstrap interval over articles (2,000 replicates; people in the same article are not independent); the LLM's error
-on the 40 test articles, with a paired bootstrap; and the **corrected estimate** (value − error), whose interval
+bootstrap interval over articles (2,000 replicates), the LLM's error
+on the 40 test articles, with a paired bootstrap, and the **corrected estimate** (value − error), whose interval
 combines the sampling of the corpus and of the test set. Each metric is then judged by fixed rules
 ([src/metrics.py](src/metrics.py)): *not presentable* when the test set has fewer than 10 annotated cases for it or
-the LLM recognises too few of the annotated people of the group; *with care* when the error's interval is wider than
-±10 pp; *presentable* otherwise.
+the LLM recognises too few of the annotated people of the group, *with care* when the error's interval is wider than ±10 pp, *presentable* otherwise.
 
 **Explored and dropped**, because they were unreliable, redundant or showed nothing: share of quoted words by women
 (quote detection misses quotes spanning several paragraphs), people mentioned without a name (1.4 % of the people),
@@ -196,7 +198,7 @@ The 40 test articles contain 79 annotated people (28 women). Results of [src/eva
 | Quote attribution | 77 % of the quotes (82 % of the words) have the same owner on both sides |
 | Error on P1 / P2 / R1 | −3.6 pp [−8.9, +1.0] / −3.5 pp [−8.0, +0.3] / −2.3 pp [−9.3, +3.5] |
 | Error on R2 study / leads the study | −2.0 pp [−10.1, +6.4] / −5.9 pp [−24.3, +10.0] |
-| Error on P3 no women / women quoted | +4.7 pp / −4.5 pp |
+| Error on P3.a no women / P3.b women quoted | +4.7 pp / −4.5 pp |
 
 **Main weakness:** the LLM underestimates % women by 2-4 pp in every metric, because it leaves about 9 % of the
 quoted people as `desconocido` (against 2 % in the annotation): it cites the name as evidence instead of the gendered
@@ -371,8 +373,7 @@ Generated locally and not published (in `.gitignore`): `data/articles.jsonl` and
 | [PyYAML](https://pyyaml.org/) | configuration | MIT |
 | [openpyxl](https://openpyxl.readthedocs.io/) | annotation sheets | MIT |
 | [Ollama](https://ollama.com/) | self-hosted model server | MIT |
-| `qwen3.8:27b` | extraction model (open weights) | see the model card |
-| `gpt-oss-120b` | proposed production model | Apache-2.0 |
+| `qwen3.8:27b` | extraction model (open weights) | Apache-2.0 |
 | [Agencia SINC](https://www.agenciasinc.es/) | source articles | CC BY 4.0 (CC-licensed articles only) |
 
 ## Team

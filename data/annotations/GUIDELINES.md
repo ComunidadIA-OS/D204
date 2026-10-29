@@ -1,16 +1,13 @@
 # Annotation guidelines: people in SINC health news
 
 These guidelines are the **single source of the rules**. Annotators use them, and the LLM prompt
-(`src/prompts.py`) uses the same definitions. If a rule changes, it changes in both places.
-
-Field names and values match the extraction schema (values stay in Spanish).
+(`src/prompts.py`) uses the same definitions. If a rule changes, it changes in both places. Field names and values match the extraction schema (values stay in Spanish).
 Examples are quoted from the articles, in Spanish.
 
 ## 0. What we annotate and why
 
 For each article we annotate **every person** in it: their gender *as given by the text*, their
-role, whether they are quoted and how they are introduced. These annotations feed the presence
-(P2-P5) and prominence (R1-R6) metrics and measure the LLM's error.
+role, whether they are quoted and how they are introduced. These annotations feed the presence and prominence metrics and measure the LLM's error.
 
 Principles:
 - **Text only.** No outside knowledge: no looking people up, no photos, no "I know who she is".
@@ -213,27 +210,3 @@ them, e.g. "la psicóloga Timanfaya Hernández") in the title, antetítulo or en
 "Un equipo liderado por…" without a name does not count.
 
 Computed by the script, not annotated: number of quoted words, and whether the person is the first one quoted.
-
-## 7. Procedure
-
-1. **Shared articles (2, marked `shared`):** all three annotate them first, **each on her own and
-   without talking to each other**, so that the comparison shows where the rules are read differently.
-2. **Comparison:** when all three have finished, we compare the shared articles together and adjust
-   these guidelines. Two articles are too few to measure agreement (kappa): they are for calibration only.
-3. **Individual articles (marked `single`):** each annotator works on her assigned articles in her
-   own sheet (Gaia 8, Tamara 20, Giulia 20). Each article is a **block of rows**, with the text on
-   the left and the `article_id` already in every row. One row per person, in order of first
-   appearance; leave unused rows empty. If a block needs more rows, insert them **inside** the
-   block and copy the `article_id`.
-4. **Doubts:** never guess; pick the most cautious value and write the doubt in `notes`.
-5. Rough time: 6-8 minutes for a typical article (about 650 words, 2-3 people); the shared
-   articles take longer (10-15 minutes) while you learn the rules, long features up to 20.
-
-Gaia's 10 articles (the 2 shared + her 8) are the **development set**: they may be used to tune the
-LLM prompt. Tamara's and Giulia's 40 individual articles are the **test set**: they are used only
-for the final evaluation.
-
-## 8. Privacy
-
-The annotations contain names and gender of real people: **do not share them outside the team and
-do not publish them**. The repository only publishes these guidelines and aggregate results.
