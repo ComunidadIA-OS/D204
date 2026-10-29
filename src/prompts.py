@@ -1,7 +1,7 @@
-"""Prompt (en español) para la extracción de personas.
+"""Prompt (in Spanish) for the extraction of people.
 
-Sigue data/annotations/GUIDELINES.md regla por regla y en el mismo orden: si cambia una regla,
-cambia en los dos sitios.
+It follows data/annotations/GUIDELINES.md rule by rule and in the same order: if a rule changes,
+change it in both places.
 """
 
 SYSTEM_PROMPT = """\
@@ -170,7 +170,7 @@ Si el artículo no tiene personas, "people": []. Usa solo los valores permitidos
 
 
 def user_message(article: dict) -> str:
-    """El mismo texto que ven las anotadoras (sin URL ni grupo de la muestra)."""
+    """The same text the annotators see (without the URL or the sample group)."""
     return "\n".join([
         f"TIPO: {article['type']}",
         f"TÍTULO: {article['title']}",

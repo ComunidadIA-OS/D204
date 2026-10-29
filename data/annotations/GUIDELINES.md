@@ -23,20 +23,20 @@ Principles:
 | Column | Values | `persona` rows | `colectivo` row | `ninguna` row |
 |---|---|---|---|---|
 | `article_id`, `article` | pre-filled (grey): the id and the full text | ✓ | ✓ | ✓ |
-| `row_type` | `persona` · `colectivo` · `ninguna` | ✓ | ✓ | ✓ |
+| `row_type` | `persona`, `colectivo`, `ninguna` | ✓ | ✓ | ✓ |
 | `name` | free text (empty if unnamed) | ✓ | | |
 | `description` | free text, only for unnamed people | ✓ | | |
-| `gender` | `mujer` · `hombre` · `desconocido` | ✓ | | |
+| `gender` | `mujer`, `hombre`, `desconocido` | ✓ | | |
 | `gender_evidence` | literal words from the text | ✓ | | |
-| `role` | `estudio` · `experta_externa` · `paciente_testimonio` · `otro` | ✓ | | |
-| `leads_study` | `si` · `no` · `no_aplica` (`no_aplica` if `role` is not `estudio`) | ✓ | | |
+| `role` | `estudio`, `experta_externa`, `paciente_testimonio`, `otro` | ✓ | | |
+| `leads_study` | `si`, `no`, `no_aplica` (`no_aplica` if `role` is not `estudio`) | ✓ | | |
 | `quotes` | literal quotes separated by ` \|\| ` | ✓ | ✓ | |
-| `quote_origin` | `a_sinc` · `comunicado` · `publicacion` · `no_especificado` · `no_aplica` | ✓ | | |
-| `intro_style` | `con_credenciales` · `solo_nombre` · `no_aplica` | ✓ | | |
-| `honorific` | `doctor` · `profesor` · `otro` · `ninguno` | ✓ | | |
-| `later_surname` | `si` · `no` · `no_aplica` | ✓ | | |
-| `later_first_name` | `si` · `no` · `no_aplica` | ✓ | | |
-| `in_title_or_lead` | `si` · `no` | ✓ | | |
+| `quote_origin` | `a_sinc`, `comunicado`, `publicacion`, `no_especificado`, `no_aplica` | ✓ | | |
+| `intro_style` | `con_credenciales`, `solo_nombre`, `no_aplica` | ✓ | | |
+| `honorific` | `doctor`, `profesor`, `otro`, `ninguno` | ✓ | | |
+| `later_surname` | `si`, `no`, `no_aplica` | ✓ | | |
+| `later_first_name` | `si`, `no`, `no_aplica` | ✓ | | |
+| `in_title_or_lead` | `si`, `no` | ✓ | | |
 | `notes` | free text: doubts, wording | optional | optional | optional |
 
 ## 1. Which text to read
@@ -81,7 +81,7 @@ One row per **real, specific individual** in the text, named or unnamed.
 
 ## 3. Gender
 
-Values: `mujer` · `hombre` · `desconocido`. In `gender_evidence`, copy **the exact word or phrase**
+Values: `mujer`, `hombre`, `desconocido`. In `gender_evidence`, copy **the exact word or phrase**
 from the text that shows it. The evidence is the key of this field: with no valid evidence, the
 gender is `desconocido`.
 

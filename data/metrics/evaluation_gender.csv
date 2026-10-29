@@ -1,0 +1,5 @@
+annotation,mujer,hombre,desconocido,total
+mujer,24,0,2,26
+hombre,0,31,3,34
+desconocido,2,4,11,17
+total,26,35,16,77

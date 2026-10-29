@@ -1,10 +1,10 @@
-# Entorno
+# Environment
 .venv/
 __pycache__/
 *.pyc
 .env
 
-# Textos completos y datos por persona: no se publican (ver PROJECT.md, sección 8)
+# Full texts and per-person data: not published (see README, "Ethics, privacy and licences")
 data/articles.jsonl
 data/mentions.jsonl
 data/cache/
@@ -13,9 +13,6 @@ data/fetch_errors.jsonl
 data/extract_errors.jsonl
 data/*.log
 
-# Context
-PROJECT.md
-
-# Anotaciones: nombres y género de personas reales; textos completos de los artículos
+# Annotations: names and gender of real people, full texts of the articles
 data/annotations/*.xlsx
 data/annotations/annotated/

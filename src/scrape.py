@@ -1,14 +1,14 @@
-"""Descarga los artículos de la sección Salud de SINC a data/articles.jsonl.
+"""Downloads the articles of SINC's Salud section into data/articles.jsonl.
 
-Fases (cada una lee la salida de la anterior):
-    index   recorre la lista paginada de Salud           -> data/index.csv
-    bounds  busca dónde empieza cada año en el índice    -> data/year_bounds.json
-    sample  per_year + buffer artículos al azar por año  -> data/sample.csv
-    fetch   descarga y parsea los artículos              -> data/articles.jsonl, data/raw/
-    select  per_year artículos por año (fecha real, CC)  -> data/corpus.csv
+Phases (each one reads the output of the previous one):
+    index   walks the paginated list of Salud            -> data/index.csv
+    bounds  finds where each year starts in the index    -> data/year_bounds.json
+    sample  per_year + buffer random articles per year   -> data/sample.csv
+    fetch   downloads and parses the articles            -> data/articles.jsonl, data/raw/
+    select  per_year articles per year (real date, CC)   -> data/corpus.csv
 
-Uso:  python -m src.scrape index [--pages 1-3,700]
-      python -m src.scrape fetch [--input index] [--random N]
+Usage:  python -m src.scrape index [--pages 1-3,700]
+        python -m src.scrape fetch [--input index] [--random N]
 """
 
 import argparse
@@ -32,7 +32,7 @@ BASE = "https://www.agenciasinc.es"
 ARTICLE_TYPES = {"Noticias", "Reportajes", "Entrevistas"}
 NON_ARTICLE_PREFIXES = {"Autor", "tag"}
 INDEX_FIELDS = ["position", "page", "url", "type"]
-RETRY_BACKOFF = [5, 30, 0]  # segundos de espera tras cada error de red; el último intento no espera
+RETRY_BACKOFF = [5, 30, 0]  # seconds to wait after each network error; the last attempt does not wait
 
 
 class ParseError(Exception):
@@ -40,7 +40,7 @@ class ParseError(Exception):
 
 
 class Client:
-    """GET con user agent propio, robots.txt y una petición cada delay_seconds."""
+    """GET with our own user agent, robots.txt and one request every delay_seconds."""
 
     def __init__(self, config: dict):
         self.delay = config["scrape"]["delay_seconds"]
@@ -78,7 +78,7 @@ def article_id(url: str) -> str:
 # ---------------------------------------------------------------- index
 
 def listing_info(client: Client, start_url: str) -> tuple[str, int]:
-    """URL AJAX de la lista de la sección y número total de páginas."""
+    """AJAX URL of the section list and total number of pages."""
     soup = BeautifulSoup(client.get(start_url), "html.parser")
     collection = soup.select_one("div.ajax-collection[data-base-url]")
     nav = soup.select_one("nav.ajax-navigation[data-total-pages]")
@@ -88,7 +88,7 @@ def listing_info(client: Client, start_url: str) -> tuple[str, int]:
 
 
 def listing_links(html: str) -> tuple[list[str], Counter]:
-    """Enlaces a artículos de una página de la lista, en orden, y recuento de otros enlaces."""
+    """Article links on one page of the list, in order, and a count of the other links."""
     links, others = [], Counter()
     for a in BeautifulSoup(html, "html.parser").find_all("a", href=True):
         path = urlparse(urljoin(BASE, a["href"])).path
@@ -160,7 +160,7 @@ def parse_date(html: str) -> str:
 
 
 def parse_authors(html: str) -> list[dict]:
-    """Firma del JSON-LD (el único sitio donde aparece también en artículos antiguos)."""
+    """Byline from the JSON-LD (the only place where it also appears in old articles)."""
     m = re.search(r'"author":\s*(\{.*?\}|\[.*?\])\s*,\s*"datePublished"', html, re.S)
     if m is None:
         raise ParseError("sin autor en JSON-LD")
@@ -174,7 +174,7 @@ def clean_text(text: str) -> str:
 
 
 def block_text(element) -> str:
-    """Texto de un bloque, un párrafo por línea, sin cortar en las negritas."""
+    """Text of a block, one paragraph per line, without splitting at bold text."""
     paragraphs = element.find_all(["p", "h2", "h3", "h4", "li", "blockquote"])
     if not paragraphs:
         return element.get_text(" ", strip=True)
@@ -182,8 +182,8 @@ def block_text(element) -> str:
     return "\n\n".join(t for t in texts if t)
 
 
-# Bloques dentro del cuerpo que no son texto del artículo: destacados (repiten frases),
-# pies de foto (créditos con nombres), relacionados (firmas de otros artículos), scripts
+# Blocks inside the body that are not article text: highlights (they repeat sentences),
+# photo captions (credits with names), related items (bylines of other articles), scripts
 NON_TEXT_BLOCKS = ", ".join([
     "div.texto_destacado_columna", "div.texto_destacado_central", "div.columna_izquierda",
     "div.modulo-cita", "div.image-container", "div.object-left", "div.object-right",
@@ -191,12 +191,12 @@ NON_TEXT_BLOCKS = ", ".join([
     "div.contenido-relacionado", "div.articulosinimagen_block_xarxes", "script",
 ])
 REFERENCE_BOX_RE = re.compile(r"^(Referencias?|Más información)\b", re.I)
-# como párrafo: solo el encabezado ("Referencia:", "Referencia bibliográfica") o seguido de dos puntos
+# as a paragraph: only the heading ("Referencia:", "Referencia bibliográfica") or followed by a colon
 REFERENCE_PARAGRAPH_RE = re.compile(r"^(Referencias?( bibliogr[aá]ficas?)?|Más información)\s*(:|$)", re.I)
 
 
 def is_question(p) -> bool:
-    """En las entrevistas las preguntas son párrafos enteramente en negrita."""
+    """In interviews the questions are paragraphs entirely in bold."""
     bold = "".join(b.get_text() for b in p.find_all(["strong", "b"]))
     return bool(bold.strip()) and len(clean_text(bold)) >= 0.9 * len(clean_text(p.get_text()))
 
@@ -204,7 +204,7 @@ def is_question(p) -> bool:
 def body_text(body, is_interview: bool) -> str:
     for extra in body.select(NON_TEXT_BLOCKS):
         extra.decompose()
-    # recuadros de referencia bibliográfica; los demás recuadros (contexto, datos) se mantienen
+    # bibliographic reference boxes; the other boxes (context, data) are kept
     for box in body.select("div.contenido_destacado"):
         if REFERENCE_BOX_RE.match(box.get_text(" ", strip=True)):
             box.decompose()
@@ -220,7 +220,7 @@ def body_text(body, is_interview: bool) -> str:
     if not paragraphs:
         paragraphs = [clean_text(body.get_text(" ", strip=True))]
 
-    # la referencia bibliográfica al final como párrafo normal: se corta desde ahí
+    # the bibliographic reference at the end as a normal paragraph: cut from there
     for i in range(len(paragraphs) - 1, max(len(paragraphs) - 5, 0) - 1, -1):
         if REFERENCE_PARAGRAPH_RE.match(paragraphs[i]):
             paragraphs = paragraphs[:i]
@@ -229,11 +229,11 @@ def body_text(body, is_interview: bool) -> str:
 
 
 def parse_header_label(soup) -> tuple[str, str, str]:
-    """Etiqueta de cabecera -> (subsection, subsection_url, header_tag).
+    """Header label -> (subsection, subsection_url, header_tag).
 
-    La pertenencia a Salud la da la lista de la sección. La cabecera suele ser una
-    subsección (/Salud/Psiquiatria), a veces una palabra clave (/tag/cáncer, una búsqueda)
-    y a veces otra sección: esos artículos se excluyen.
+    Membership in Salud comes from the section list. The header is usually a
+    subsection (/Salud/Psiquiatria), sometimes a keyword (/tag/cáncer, a search)
+    and sometimes another section: those articles are excluded.
     """
     a = soup.select_one("div.tag_link.header a[href]")
     if a is None:
@@ -291,8 +291,8 @@ def parse_article(html: str, url: str) -> dict:
 # ---------------------------------------------------------------- bounds / sample
 
 def cmd_bounds(config: dict, client: Client, args) -> None:
-    """Búsqueda binaria sobre las posiciones del índice (de más reciente a más antiguo):
-    bounds[Y] = primera posición cuyo artículo es del año Y o anterior."""
+    """Binary search over the index positions (from most recent to oldest):
+    bounds[Y] = first position whose article is from year Y or earlier."""
     index = read_csv(config["paths"]["index"])
     years = {}
 
@@ -365,7 +365,7 @@ def cmd_fetch(config: dict, client: Client, args) -> None:
 
     paths["raw"].mkdir(parents=True, exist_ok=True)
     errors, from_raw = 0, 0
-    # fetch_errors.jsonl refleja solo la última ejecución
+    # fetch_errors.jsonl reflects only the last run
     with open(paths["articles"], "a", encoding="utf-8") as out, \
          open(paths["fetch_errors"], "w", encoding="utf-8") as err:
         for n, row in enumerate(todo, 1):
@@ -373,7 +373,7 @@ def cmd_fetch(config: dict, client: Client, args) -> None:
             raw = paths["raw"] / f"{article_id(url)}.html.gz"
             try:
                 if raw.exists():
-                    # ya descargado: se vuelve a parsear sin pedirlo otra vez al servidor
+                    # already downloaded: parsed again without requesting it from the server
                     with gzip.open(raw, "rt", encoding="utf-8") as f:
                         html = f.read()
                     from_raw += 1
@@ -398,8 +398,8 @@ def cmd_fetch(config: dict, client: Client, args) -> None:
 
 
 def cmd_select(config: dict, client: Client, args) -> None:
-    """per_year artículos por año según la fecha real, en el orden aleatorio de la muestra,
-    solo con licencia CC."""
+    """per_year articles per year by real date, in the random order of the sample,
+    CC-licensed only."""
     paths, s = config["paths"], config["sample"]
     articles = {a["url"]: a for a in read_articles(paths["articles"])}
     by_year = {y: [] for y in range(s["first_year"], s["last_year"] + 1)}

@@ -1,19 +1,19 @@
-"""Extrae con un LLM las personas mencionadas en cada artículo a data/mentions.jsonl.
+"""Extracts with an LLM the people mentioned in each article into data/mentions.jsonl.
 
-Una llamada por artículo. El código numera antes todos los textos entre comillas del artículo
-(«…»[C1], “…”[C2]) y el modelo solo dice a quién pertenece cada uno: así las citas son siempre
-literales y no se pueden inventar. La respuesta cruda se guarda en
-data/cache/<modelo>/<prompt>-<parámetros>/<id>.json, así que repetir una ejecución no vuelve a
-llamar al modelo y cambiar el prompt o los parámetros invalida la caché.
+One call per article. Beforehand the code numbers every text in quotation marks in the article
+(«…»[C1], “…”[C2]) and the model only says who each one belongs to: this way quotes are always
+verbatim and cannot be invented. The raw response is saved in
+data/cache/<model>/<prompt>-<parameters>/<id>.json, so repeating a run does not call the
+model again, and changing the prompt or the parameters invalidates the cache.
 
-Después de la llamada, el código une las personas duplicadas ("Úbeda" y "Carles Úbeda"),
-normaliza los valores que se deducen de otros campos, comprueba gender_evidence (que esté en el
-texto, cerca de la persona y que no sea un plural masculino) y calcula quoted_words y first_quoted.
+After the call, the code merges duplicate people ("Úbeda" and "Carles Úbeda"), normalises the
+values that follow from other fields, checks gender_evidence (that it is in the text, near the
+person and not a masculine plural) and computes quoted_words and first_quoted.
 
-Uso:  python -m src.extract --split dev           # los 10 artículos de desarrollo (hoja de Gaia)
-      python -m src.extract --ids 71490460032b,5f1c2b406318
-      python -m src.extract --round 1             # 50 artículos por año (rondas 1, 2, 3)
-      python -m src.extract --round 1 --year 2008 # solo un año de la ronda
+Usage:  python -m src.extract --split dev           # the 10 development articles
+        python -m src.extract --ids 71490460032b,5f1c2b406318
+        python -m src.extract --round 1             # 50 articles per year
+        python -m src.extract --round 1 --year 2008 # only one year of the round
 """
 
 import argparse
@@ -32,16 +32,16 @@ import openai
 from pydantic import ValidationError
 
 from src.config import get_api_key, load_config
-from src.fewshot import EXAMPLES
 from src.prompts import SYSTEM_PROMPT, user_message
 from src.schema import Extraction
 
-PER_ROUND = 50  # artículos por año en cada ronda
+PER_ROUND = 50  # articles per year in each round
 PROMPT_VERSION = hashlib.sha256(SYSTEM_PROMPT.encode()).hexdigest()[:8]
-FEWSHOT_VERSION = hashlib.sha256(json.dumps(EXAMPLES, sort_keys=True).encode()).hexdigest()[:8]
-FIELDS = ["title", "antetitulo", "lead", "text"]  # el texto completo, en este orden
-QUOTE_PAIRS = "“”«»\""  # comillas que abren o cierran citas (ver quote_role)
-EVIDENCE_WINDOW = 150  # caracteres entre gender_evidence y una mención de la persona
+# bump when the post-processing changes the rows; 2: gender_evidence made only of the person's name is rejected
+POSTPROCESS_VERSION = 2
+FIELDS = ["title", "antetitulo", "lead", "text"]  # the full text, in this order
+QUOTE_PAIRS = "“”«»\""  # quotation marks that open or close quotes (see quote_role)
+EVIDENCE_WINDOW = 150  # characters between gender_evidence and a mention of the person
 MASC_PLURAL = {"los", "unos", "estos", "esos", "aquellos", "ambos", "varios"}
 FEM_PLURAL = {"las", "unas", "estas", "esas", "aquellas", "ambas", "varias"}
 
@@ -50,7 +50,7 @@ class ExtractionError(Exception):
     pass
 
 
-# --- llamada al modelo -------------------------------------------------------------------------
+# --- model call --------------------------------------------------------------------------------
 
 def make_client(config: dict) -> openai.OpenAI:
     llm = config["llm"]
@@ -63,48 +63,45 @@ def make_client(config: dict) -> openai.OpenAI:
 
 
 def call_settings(config: dict) -> dict:
-    """Parámetros de la llamada que cambian la respuesta; forman parte de la clave de la caché."""
+    """Call parameters that change the response; they are part of the cache key."""
     llm = config["llm"]
     return {"temperature": llm["temperature"], "max_tokens": llm.get("max_tokens"),
             "response_format": llm.get("response_format", "json_schema"),
             "reasoning_effort": llm.get("reasoning_effort"),
-            "few_shot": FEWSHOT_VERSION if llm.get("few_shot") else None}
+            # the few-shot examples were removed; the key stays at None so that call_id does not change
+            # (the cache and the runs in mentions.jsonl)
+            "few_shot": None}
 
 
-def run_id(config: dict) -> str:
-    """Prompt y parámetros de la llamada: identifica una ejecución en la caché y en mentions.jsonl.
+def call_id(config: dict) -> str:
+    """Prompt and call parameters: they identify the model responses in the cache.
 
-    max_tokens no cuenta: una respuesta completa no depende del límite (las cortadas no se reutilizan).
+    max_tokens does not count: a complete response does not depend on the limit (truncated ones are not reused).
     """
     settings = {k: v for k, v in call_settings(config).items() if k != "max_tokens"}
     settings = hashlib.sha256(json.dumps(settings, sort_keys=True).encode()).hexdigest()[:6]
     return f"{PROMPT_VERSION}-{settings}"
 
 
+def run_id(config: dict) -> str:
+    """The responses plus the post-processing that turns them into rows: identifies a run in mentions.jsonl."""
+    return f"{call_id(config)}-p{POSTPROCESS_VERSION}"
+
+
 def cache_path(config: dict, article_id: str) -> Path:
     model = re.sub(r"[^\w.-]", "_", config["llm"]["model"])
-    return config["paths"]["cache"] / model / run_id(config) / f"{article_id}.json"
-
-
-def few_shot_messages() -> list[dict]:
-    """Los ejemplos como turnos previos de la conversación: artículo numerado y salida esperada."""
-    messages = []
-    for example in EXAMPLES:
-        marked, _ = number_quotes(example["article"])
-        messages += [{"role": "user", "content": user_message(marked)},
-                     {"role": "assistant", "content": json.dumps(example["output"], ensure_ascii=False)}]
-    return messages
+    return config["paths"]["cache"] / model / call_id(config) / f"{article_id}.json"
 
 
 def call_llm(client: openai.OpenAI, config: dict, article: dict, marked: dict) -> tuple[dict, bool]:
-    """Devuelve la respuesta cruda y si venía de la caché.
+    """Returns the raw response and whether it came from the cache.
 
-    Se guardan todas las respuestas (con el razonamiento, para depurar), pero solo se reutilizan
-    las que terminaron normalmente con contenido: una respuesta cortada o vacía se repite.
+    Every response is saved (with the reasoning, for debugging), but only those that finished
+    normally with content are reused: a truncated or empty response is requested again.
     """
     path = cache_path(config, article["id"])
     message = user_message(marked)
-    # la numeración de las citas puede cambiar sin que cambie el prompt
+    # the quote numbering can change without the prompt changing
     input_hash = hashlib.sha256(message.encode()).hexdigest()[:12]
     if path.exists():
         raw = json.loads(path.read_text(encoding="utf-8"))
@@ -124,7 +121,6 @@ def call_llm(client: openai.OpenAI, config: dict, article: dict, marked: dict) -
         temperature=settings["temperature"],
         max_tokens=settings["max_tokens"],
         messages=[{"role": "system", "content": SYSTEM_PROMPT},
-                  *(few_shot_messages() if settings["few_shot"] else []),
                   {"role": "user", "content": message}],
         response_format=response_format,
         **extra,
@@ -150,24 +146,24 @@ def call_llm(client: openai.OpenAI, config: dict, article: dict, marked: dict) -
 
 def parse(raw: dict) -> Extraction:
     content = (raw["content"] or "").strip()
-    content = re.sub(r"^```(?:json)?\s*|\s*```$", "", content)  # por si el modelo añade ```json
+    content = re.sub(r"^```(?:json)?\s*|\s*```$", "", content)  # in case the model adds ```json
     try:
         return Extraction.model_validate_json(content)
     except ValidationError as e:
         raise ExtractionError(f"{raw['id']}: salida no válida: {e}") from e
 
 
-# --- texto y citas -----------------------------------------------------------------------------
+# --- text and quotes ---------------------------------------------------------------------------
 
 def full_text(article: dict) -> str:
     return "\n".join(article[f] for f in FIELDS)
 
 
 def quote_role(s: str, i: int) -> str:
-    """'open' o 'close' para la comilla s[i], según el contexto.
+    """'open' or 'close' for the quotation mark s[i], from its context.
 
-    SINC mezcla las comillas: “…" , “…“, ”…”. Una comilla pegada a la palabra anterior y seguida
-    de espacio o puntuación cierra; una precedida de espacio y seguida de una letra abre.
+    SINC mixes quotation marks: “…" , “…“, ”…”. A mark attached to the previous word and followed
+    by a space or punctuation closes; one preceded by a space and followed by a letter opens.
     """
     before = s[i - 1] if i > 0 else " "
     after = s[i + 1] if i + 1 < len(s) else " "
@@ -175,14 +171,14 @@ def quote_role(s: str, i: int) -> str:
         return "open" if before.isspace() and after.isalnum() else "close"
     if s[i] in "“«":
         return "close" if not before.isspace() and (after.isspace() or after in ",.;:)!?–-") else "open"
-    return "close" if not before.isspace() and not after.isalnum() else "open"  # comilla recta
+    return "close" if not before.isspace() and not after.isalnum() else "open"  # straight quotation mark
 
 
 def find_quotes(s: str) -> list[tuple[int, int]]:
-    """Spans (inicio, fin) de los textos entre comillas de s, comillas incluidas.
+    """Spans (start, end) of the texts in quotation marks in s, marks included.
 
-    Una cita no pasa de un párrafo. Si un párrafo acaba con comillas abiertas (una comilla interior
-    que no se cierra: “es novedosa… Sin embargo, “desde…”), la cita termina en el último cierre.
+    A quote does not go past a paragraph. If a paragraph ends with open marks (an inner mark that
+    is never closed: “es novedosa… Sin embargo, “desde…”), the quote ends at the last closing mark.
     """
     spans, depth, start, last_close, i = [], 0, None, None, 0
     while i <= len(s):
@@ -192,7 +188,7 @@ def find_quotes(s: str) -> list[tuple[int, int]]:
                 spans.append((start, last_close + 1))
                 i = last_close + 1
             elif depth:
-                i = start + 1  # comilla sin cierre: no es una cita
+                i = start + 1  # mark without a closing one: not a quote
             else:
                 i += 1
             depth, start, last_close = 0, None, None
@@ -213,9 +209,9 @@ def find_quotes(s: str) -> list[tuple[int, int]]:
 
 
 def number_quotes(article: dict) -> tuple[dict, dict]:
-    """Marca cada texto entre comillas con [Cn] y devuelve el artículo marcado y las citas por id.
+    """Marks each text in quotation marks with [Cn] and returns the marked article and the quotes by id.
 
-    Las posiciones (start, end) se refieren a full_text(article), sin marcas.
+    The positions (start, end) refer to full_text(article), without the marks.
     """
     marked, quotes, offset = dict(article), {}, 0
     for field in FIELDS:
@@ -235,18 +231,18 @@ def word_count(s: str) -> int:
 
 
 def plain(s: str) -> str:
-    """Minúsculas y sin tildes, para comparar nombres."""
+    """Lowercase and without accents, to compare names."""
     return unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode().lower().strip()
 
 
 def interview_start(article: dict) -> int | None:
-    """Posición de la primera [PREGUNTA] en full_text, o None si no hay."""
+    """Position of the first [PREGUNTA] in full_text, or None if there is none."""
     pos = full_text(article).find("[PREGUNTA]")
     return pos if pos >= 0 else None
 
 
 def interview_answer_words(article: dict) -> int:
-    """Palabras de las respuestas: párrafos que no son [PREGUNTA], desde la primera pregunta."""
+    """Words of the answers: paragraphs that are not [PREGUNTA], from the first question on."""
     text = article["text"]
     if "[PREGUNTA]" not in text:
         return 0
@@ -254,11 +250,11 @@ def interview_answer_words(article: dict) -> int:
     return sum(word_count(p) for p in body.split("\n") if p.strip() and not p.startswith("[PREGUNTA]"))
 
 
-# --- postproceso de las personas ---------------------------------------------------------------
+# --- post-processing of the people -------------------------------------------------------------
 
 def merge_duplicates(people: list[dict], quotes: dict) -> None:
-    """Une a una persona con otra del mismo artículo cuyo nombre contiene al suyo ("Úbeda" en
-    "Carles Úbeda"). Si el nombre corto encaja en varias personas, no se une (ambiguo)."""
+    """Merges a person into another one in the same article whose name contains theirs ("Úbeda" in
+    "Carles Úbeda"). If the short name fits several people, nothing is merged (ambiguous)."""
     for a in list(people):
         ta = plain(a["name"]).split()
         if not ta:
@@ -275,7 +271,7 @@ def merge_duplicates(people: list[dict], quotes: dict) -> None:
             b["later_first_name"] = "si"
         for field in ("later_surname", "later_first_name"):
             if b[field] == "no_aplica":
-                b[field] = "no"  # se la nombra otra vez
+                b[field] = "no"  # mentioned again
         if a["in_title_or_lead"] == "si":
             b["in_title_or_lead"] = "si"
         if b["gender"] == "desconocido" and a["gender"] != "desconocido":
@@ -287,7 +283,7 @@ def merge_duplicates(people: list[dict], quotes: dict) -> None:
 
 
 def normalize_person(p: dict) -> list[str]:
-    """Corrige los valores que se deducen de otros campos (GUIDELINES.md) y devuelve qué cambió."""
+    """Fixes the values that follow from other fields (GUIDELINES.md) and returns what changed."""
     fixes = []
 
     def fix(field: str, value: str, why: str) -> None:
@@ -298,7 +294,7 @@ def normalize_person(p: dict) -> list[str]:
     if plain(p["name"]) in ("desconocido", "no_aplica"):
         fix("name", "", "name no es un nombre")
     if p["name"].strip() and p["name"].strip()[0].islower():
-        # "una afrobrasileña" no es un nombre: es la descripción de una persona sin nombre
+        # "una afrobrasileña" is not a name: it is the description of an unnamed person
         if not p["description"].strip():
             fix("description", p["name"].strip(), "name en minúscula: es una descripción")
         fix("name", "", "name en minúscula: persona sin nombre")
@@ -322,17 +318,17 @@ def normalize_person(p: dict) -> list[str]:
 
 
 NAME_PARTICLES = {"de", "del", "la", "las", "los", "y", "i", "van", "von", "da", "di", "le", "du"}
-# palabras que van en mayúscula al empezar la frase pero no son nombres
+# words capitalised at the start of a sentence that are not names
 NOT_NAMES = {"segun", "para", "como", "dice", "explica", "anade", "senala", "afirma", "asegura",
              "cuenta", "concluye", "precisa", "apunta", "comenta", "recuerda", "y", "el", "la", "con",
              "por", "de", "en", "a", "sin", "que", "pero", "ademas", "asi", "tambien", "hoy"}
 
 
 def later_mentions(name: str, text: str) -> tuple[str, str]:
-    """later_surname y later_first_name calculados en el texto (sección 6 de GUIDELINES.md).
+    """later_surname and later_first_name computed from the text (section 6 of GUIDELINES.md).
 
-    Tras la primera mención, busca el apellido solo y el nombre de pila solo; el nombre completo
-    repetido cuenta como "nombrada otra vez" pero no como ninguno de los dos.
+    After the first mention, looks for the surname alone and the first name alone; the full name
+    repeated counts as "named again" but as neither of the two.
     """
     tokens = name.split()
     first = tokens[0]
@@ -358,14 +354,14 @@ def later_mentions(name: str, text: str) -> tuple[str, str]:
             again = True
             continue
         if any(fs <= s and e <= fe for fs, fe in full):
-            continue  # parte del nombre completo repetido
-        # palabra pegada (un solo espacio) antes del apellido o después del nombre de pila
+            continue  # part of the repeated full name
+        # word attached (a single space) before the surname or after the first name
         before = re.findall(r"(\w+) $", text[max(0, s - 40):s])
         after = re.findall(r"^ (\w+)", text[e:e + 40])
         neighbour = (after if kind == "first" else before) or [""]
         word = neighbour[0]
         if word and word[0].isupper() and plain(word) not in own and plain(word) not in NOT_NAMES:
-            continue  # otra persona con el mismo nombre o apellido ("María López")
+            continue  # another person with the same first name or surname ("María López")
         again = True
         if kind == "surname":
             surname = "si"
@@ -375,14 +371,16 @@ def later_mentions(name: str, text: str) -> tuple[str, str]:
 
 
 def evidence_problem(p: dict, text: str, quotes: dict) -> str | None:
-    """Por qué gender_evidence no vale para esta persona, o None si vale."""
+    """Why gender_evidence is not valid for this person, or None if it is."""
     evidence = re.sub(r"\s+", " ", p["gender_evidence"]).strip().lower()
     if p["gender"] == "desconocido" or not evidence:
         return None
+    if {plain(w) for w in re.findall(r"\w+", evidence)} <= {plain(w) for w in re.findall(r"\w+", p["name"])}:
+        return "es solo el nombre de la persona"
     lower = text.lower()
     found = [m.start() for m in re.finditer(re.escape(evidence), lower)]
     if not found:
-        # el modelo suele añadir el artículo ("el coordinador" por "Rafael de la Torre, coordinador")
+        # the model often adds the article ("el coordinador" for "Rafael de la Torre, coordinador")
         evidence = re.sub(r"^(el|la|los|las|un|una|unos|unas) ", "", evidence)
         found = [m.start() for m in re.finditer(r"(?<!\w)" + re.escape(evidence) + r"(?!\w)", lower)]
     if not found:
@@ -393,7 +391,7 @@ def evidence_problem(p: dict, text: str, quotes: dict) -> str | None:
         plural_fem = words[0] in FEM_PLURAL or words[0].endswith("as")
         if not (plural_fem and p["gender"] == "mujer"):
             return "plural (el masculino plural no indica el género de cada persona)"
-    # menciones de la persona: nombre, partes del nombre, descripción y sus citas
+    # mentions of the person: name, parts of the name, description and their quotes
     anchors = []
     for term in [p["name"], p["description"], *[w for w in p["name"].split() if len(w) >= 4]]:
         term = term.strip().lower()
@@ -407,8 +405,8 @@ def evidence_problem(p: dict, text: str, quotes: dict) -> str | None:
                 return True
         return False
 
-    # la evidencia elegida puede estar lejos ("dirigido por una investigadora…") si la misma
-    # palabra con género aparece también junto a la persona ("la investigadora Adela Rendón")
+    # the chosen evidence can be far away ("dirigido por una investigadora…") if the same
+    # gendered word also appears next to the person ("la investigadora Adela Rendón")
     bare = re.sub(r"^(el|la|un|una|este|esta) ", "", evidence)
     if near(evidence) or near(bare):
         return None
@@ -416,11 +414,11 @@ def evidence_problem(p: dict, text: str, quotes: dict) -> str | None:
 
 
 def mentions(article: dict, extraction: Extraction, quotes: dict, config: dict) -> list[dict]:
-    """Una fila por persona (más una fila colectivo), con los campos calculados y las comprobaciones."""
+    """One row per person (plus a collective row), with the computed fields and the checks."""
     text = full_text(article)
     base = {"article_id": article["id"], "model": config["llm"]["model"], "run": run_id(config)}
 
-    # cada id de cita, a una sola persona o al colectivo; los ids desconocidos se descartan
+    # each quote id goes to a single person or to the collective; unknown ids are dropped
     assigned, warnings = set(), []
 
     def take(ids: list[str], owner: str) -> list[str]:
@@ -465,7 +463,7 @@ def mentions(article: dict, extraction: Extraction, quotes: dict, config: dict) 
             p["gender"] = "desconocido"
         counted = p["quote_ids"]
         if p["is_interviewee"] and interview_pos is not None:
-            # las citas dentro de las respuestas ya se cuentan con las respuestas
+            # the quotes inside the answers are already counted with the answers
             counted = [q for q in counted if quotes[q]["start"] < interview_pos]
             p["quoted_words"] = interview_answer_words(article)
         else:
@@ -474,7 +472,7 @@ def mentions(article: dict, extraction: Extraction, quotes: dict, config: dict) 
         p["first_quote_pos"] = min((quotes[q]["start"] for q in p["quote_ids"]), default=None)
         rows.append({**base, "row_type": "persona", "order": i, **p})
 
-    # R2: primera persona citada; en las entrevistas no se calcula (siempre habla primero la entrevistada)
+    # R2: first person quoted; not computed in interviews (the interviewee always speaks first)
     quoted = [r for r in rows if r["first_quote_pos"] is not None]
     first = min(quoted, key=lambda r: r["first_quote_pos"]) if quoted else None
     for r in rows:
@@ -493,7 +491,7 @@ def mentions(article: dict, extraction: Extraction, quotes: dict, config: dict) 
     return rows
 
 
-# --- selección de artículos y salida -----------------------------------------------------------
+# --- article selection and output --------------------------------------------------------------
 
 def select_ids(args, config: dict) -> list[str]:
     if args.ids:
@@ -501,8 +499,12 @@ def select_ids(args, config: dict) -> list[str]:
     if args.split:
         with open(config["paths"]["annotations"] / "sample.csv", encoding="utf-8") as f:
             return [r["id"] for r in csv.DictReader(f) if r["split"] == args.split]
-    # ronda n: artículos (n-1)*50 .. n*50 de cada año en un orden aleatorio fijo,
-    # así cualquier ronda terminada es una muestra equilibrada por año
+    # round n: articles (n-1)*50 .. n*50 of each year in a fixed random order,
+    # so any finished round is a sample balanced by year.
+    # The development articles (the prompt was tuned on them) are removed after cutting
+    # the round, so the order does not shift: that year the round has fewer than 50. Test ones stay.
+    with open(config["paths"]["annotations"] / "sample.csv", encoding="utf-8") as f:
+        dev = {r["id"] for r in csv.DictReader(f) if r["split"] == "dev"}
     with open(config["paths"]["corpus"], encoding="utf-8") as f:
         corpus = list(csv.DictReader(f))
     by_year: dict[str, list[str]] = {}
@@ -512,14 +514,14 @@ def select_ids(args, config: dict) -> list[str]:
     ids = []
     for year in sorted(by_year):
         year_ids = sorted(by_year[year])
-        rng.shuffle(year_ids)  # se baraja cada año aunque se pida solo uno: la selección no cambia
+        rng.shuffle(year_ids)  # every year is shuffled even if only one is requested: the selection does not change
         if args.year is None or int(year) == args.year:
-            ids += year_ids[(args.round - 1) * PER_ROUND: args.round * PER_ROUND]
+            ids += [i for i in year_ids[(args.round - 1) * PER_ROUND: args.round * PER_ROUND] if i not in dev]
     return ids
 
 
 def write_mentions(path: Path, new_rows: list[dict], done_ids: set) -> None:
-    """Sustituye en mentions.jsonl las filas de los artículos procesados (mismo modelo y ejecución)."""
+    """Replaces in mentions.jsonl the rows of the processed articles (same model and run)."""
     key = (new_rows[0]["model"], new_rows[0]["run"]) if new_rows else None
     old = []
     if path.exists():
@@ -551,8 +553,7 @@ def main() -> None:
         raise ValueError(f"Artículos que no están en articles.jsonl: {missing}")
 
     client = make_client(config)
-    print(f"Modelo {config['llm']['model']}, ejecución {run_id(config)} "
-          f"(few-shot: {'sí' if config['llm'].get('few_shot') else 'no'}), {len(ids)} artículos")
+    print(f"Modelo {config['llm']['model']}, ejecución {run_id(config)}, {len(ids)} artículos")
     rows, done, errors, stats = [], set(), [], Counter()
     for n, article_id in enumerate(ids, 1):
         article = articles[article_id]

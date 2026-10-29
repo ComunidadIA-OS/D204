@@ -1,0 +1,9 @@
+# Dashboard theme (src/dashboard.py): colours of the presentation in dark mode
+[theme]
+base = "dark"
+primaryColor = "#9B8CE8"
+backgroundColor = "#14102A"
+secondaryBackgroundColor = "#1F1A33"
+textColor = "#F1EEFA"
+linkColor = "#9B8CE8"
+borderColor = "#3A3160"

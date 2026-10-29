@@ -1,0 +1,13 @@
+,test cases,unit,recall %
+P1: mentioned,62,people of known gender,100.0
+P2: quoted directly,53,people of known gender,98.14814814814815
+R1: first person quoted,27,people of known gender,100.0
+R2: estudio,43,people of known gender,100.0
+R2: leads the study,16,people of known gender,86.95652173913044
+R2: experta_externa,12,people of known gender,41.666666666666664
+R2: paciente_testimonio,2,people of known gender,100.0
+R2: otro,5,people of known gender,66.66666666666667
+R3: introduced with credentials,26,women or men,
+P3: no women,14,articles,
+"P3: women mentioned, not quoted",2,articles,
+P3: women quoted,16,articles,
