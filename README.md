@@ -285,8 +285,16 @@ llm:
   reasoning_effort:             # null = model default; "none" turns reasoning off on Ollama
 ```
 
-The `base_url` and `ca_cert` in the committed config point to the self-hosted server used for the project; replace
-them. A new model or prompt writes to a new cache folder and a new `run`: set `analysis.model` and `analysis.run`
+The project ran on a private self-hosted server, which is not in the committed config. To use one of your own without
+committing it, put the keys that change in a `config.local.yaml` (ignored by git), which overrides `config.yaml`:
+
+```yaml
+llm:
+  base_url: https://my-server/v1/
+  ca_cert: ~/certs/my-ca.crt
+```
+
+A new model or prompt writes to a new cache folder and a new `run`: set `analysis.model` and `analysis.run`
 to analyse it, and run `src.evaluate` again before trusting its metrics.
 
 ## Repository structure

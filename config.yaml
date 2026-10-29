@@ -3,15 +3,14 @@
 
 llm:
   # Any OpenAI-compatible endpoint (OVH AI Endpoints, vLLM, Ollama...)
-  # Development: self-hosted Ollama. Production: OVH AI Endpoints with
-  #   base_url: https://oai.endpoints.kepler.ai.cloud.ovh.net/v1   model: gpt-oss-120b
-  base_url: https://ollama.tinman.lst/v1/
+  # A private server (e.g. a self-hosted Ollama) goes in config.local.yaml, which is not committed
+  base_url: https://oai.endpoints.kepler.ai.cloud.ovh.net/v1
   model: qwen3.8:27b
   # Name of the environment variable holding the API key (the key never goes in this file)
   api_key_env: LLM_API_KEY
   temperature: 0
   # (optional) Certificate of a private CA for HTTPS; empty = system CAs
-  ca_cert: ~/certs/ca-lst.crt
+  ca_cert:
   # (optional, default 600) Maximum seconds to wait for each call
   timeout_seconds: 900
   # Limit on generated tokens (reasoning included): cuts responses that never end. Required
