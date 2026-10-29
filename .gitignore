@@ -3,6 +3,7 @@
 __pycache__/
 *.pyc
 .env
+config.local.yaml
 
 # Full texts and per-person data: not published (see README, "Ethics, privacy and licences")
 data/articles.jsonl

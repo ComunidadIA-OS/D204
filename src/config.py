@@ -2,7 +2,8 @@
 
 The `paths` are returned as absolute paths from the repository root, so the scripts work from any
 folder. The API key is never in config.yaml: it is read from the environment variable named in
-llm.api_key_env.
+llm.api_key_env. A config.local.yaml next to it, if present, overrides its keys section by section
+(e.g. a private llm.base_url); it is not committed.
 """
 
 import os
@@ -38,6 +39,11 @@ def load_config(path: Path = CONFIG_PATH) -> dict:
         config = yaml.safe_load(f)
     if not isinstance(config, dict):
         raise ConfigError(f"{path} está vacío o no es un mapa YAML")
+    local = path.with_name("config.local.yaml")
+    if local.exists():
+        with open(local, encoding="utf-8") as f:
+            for section, keys in (yaml.safe_load(f) or {}).items():
+                config.setdefault(section, {}).update(keys)
 
     for section, keys in REQUIRED.items():
         if not isinstance(config.get(section), dict):
