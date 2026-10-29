@@ -1,0 +1,4 @@
+,% articles,CI low,CI high,articles,LLM error [95 % CI],corrected,corrected CI low,corrected CI high,presentable,why
+P3: no women,49.616858237547895,47.19029374201788,51.98116219667943,777.0,"+4.7 [+0.0, +12.2]",44.88200975269941,36.87412688246949,50.89559386973179,yes,error: ±6 pp on the test set
+"P3: women mentioned, not quoted",7.662835249042145,6.32183908045977,9.067688378033205,120.0,"-0.2 [-1.0, +0.0]",,,,no,only 2 articles in the test set (fewer than 10)
+P3: women quoted,42.72030651340996,40.29374201787995,45.146871008939975,669.0,"-4.5 [-11.8, +0.0]",47.265761058864506,41.441570881226056,55.260764275120486,yes,error: ±6 pp on the test set

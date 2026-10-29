@@ -1,0 +1,9 @@
+,people,% agree,most common disagreement
+quoted,77,98.7,True → False (1)
+in_title_or_lead,77,97.4,si → no (2)
+first_quoted,76,100.0,
+intro_style,77,96.1,solo_nombre → con_credenciales (2)
+honorific,77,92.2,doctor → ninguno (4)
+later_surname,77,97.4,no_aplica → si (1)
+later_first_name,77,97.4,no → si (1)
+quote_origin,53,79.2,a_sinc → no_especificado (7)

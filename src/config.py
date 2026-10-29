@@ -1,4 +1,9 @@
-"""Carga config.yaml. Si falta una clave o la API key, lanza un error claro."""
+"""Loads config.yaml. If a section, a required key or the API key is missing, it raises a clear error.
+
+The `paths` are returned as absolute paths from the repository root, so the scripts work from any
+folder. The API key is never in config.yaml: it is read from the environment variable named in
+llm.api_key_env.
+"""
 
 import os
 from pathlib import Path
@@ -8,13 +13,16 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 CONFIG_PATH = ROOT / "config.yaml"
 
+# required keys per section; the others (llm.ca_cert, llm.timeout_seconds...) have a default value
 REQUIRED = {
-    "llm": ["base_url", "model", "api_key_env", "temperature"],
+    # max_tokens is required: without a limit, a reasoning model may never finish
+    "llm": ["base_url", "model", "api_key_env", "temperature", "max_tokens"],
     "scrape": ["start_url", "delay_seconds", "user_agent"],
     "sample": ["first_year", "last_year", "per_year", "buffer", "seed"],
+    "analysis": ["model", "run", "rounds"],
     "paths": [
         "index", "year_bounds", "sample", "corpus", "articles", "raw", "fetch_errors",
-        "mentions", "cache", "annotations", "metrics", "reports",
+        "mentions", "cache", "annotations", "metrics", "figures",
     ],
 }
 

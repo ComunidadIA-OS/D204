@@ -1,28 +1,33 @@
-"""Muestra para la anotación manual y hoja de cálculo para anotar.
+"""Sample for the manual annotation, and the spreadsheet to annotate it.
 
-Del corpus (data/corpus.csv) se extraen 80 candidatos estratificados por año y se usan 50:
-    shared  2 artículos, los anotan las tres por separado y luego se comparan juntas para
-            calibrar la guía (desarrollo)
-    single 45 artículos, uno por anotadora: 5 de Gaia (desarrollo), 20 de Tamara y 20 de
-            Giulia (test)
-    dev     3 artículos más para Gaia, elegidos a propósito fuera de la muestra para cubrir
-            casos difíciles: un reportaje, una nota institucional antigua, un testimonio
-Desarrollo = se puede usar para ajustar el prompt. Test = solo para la evaluación final.
+From the corpus (data/corpus.csv), 80 candidates stratified by year are drawn and 50 are used:
+    shared  2 articles, annotated by every annotator separately and then compared together to
+            calibrate the guidelines (development)
+    single 45 articles, one annotator each: 5 for development, 40 for test
+    dev     3 more development articles, deliberately picked outside the sample to cover
+            hard cases: a feature, an old institutional note, a testimony
+Development = may be used to tune the prompt. Test = only for the final evaluation.
 
-Salida:  data/annotations/sample.csv            (ids y URLs, publicable)
-         data/annotations/annotation_sheet.xlsx (con los textos, NO se publica)
+Output:  data/annotations/sample.csv            (ids and URLs, publishable)
+         data/annotations/ground_truth.xlsx (with the texts, NOT published): sheets Dev and Test,
+                                             empty, to be filled in by the annotators
 
-Uso:  python -m src.annotation_sample
+If sample.csv already exists, the new sample must have the same articles and splits, otherwise it stops:
+changing the split would make the evaluation against ground_truth.xlsx meaningless. It never overwrites an
+existing ground_truth.xlsx, which holds the annotations: move it elsewhere first.
+
+Usage:  python -m src.annotation_sample
 """
 
 import csv
 import json
+import math
 import random
 import re
 from collections import defaultdict
 
 from openpyxl import Workbook
-from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.worksheet.datavalidation import DataValidation
 
 from src.config import load_config
@@ -30,51 +35,44 @@ from src.config import load_config
 PER_YEAR = 4
 EXTRA = 4
 N_SHARED = 2
-# anotadora -> (número de artículos individuales, split); el orden fija la asignación
-ANNOTATORS = {"Gaia": (5, "dev"), "Tamara": (20, "test"), "Giulia": (20, "test")}
-MAX_ROWS = 2000  # filas con desplegables en cada hoja de anotación
+# split -> number of single articles; the order sets the assignment (dev first, then test)
+SPLITS = {"dev": 5, "test": 40}
+SHEETS = {"dev": "Dev", "test": "Test"}  # split -> sheet, as in ground_truth.xlsx
+# rows per article: enough for the text to fit in rows of ROW_HEIGHT points
+# (and at least the quotes + 3); if short, more rows are inserted inside the block
+MIN_BLOCK_ROWS, MAX_BLOCK_ROWS = 5, 40
+ROW_HEIGHT = 45  # points: about three lines of text in the annotation columns
+SPARE_ROWS = 300  # extra rows with drop-downs at the end, for the inserted rows
+TEXT_WIDTH = 100  # width of the text column
+CHARS_PER_LINE = 120  # approximate, to compute the height of the text
+LINE_HEIGHT = 13  # points per line
 
-# columnas de anotación -> valores permitidos (None = texto libre); ver GUIDELINES.md
+# annotation columns -> allowed values (None = free text); see GUIDELINES.md
 COLUMNS = {
-    "article_id": None,
-    "title": None,
     "row_type": ["persona", "colectivo", "ninguna"],
     "name": None,
     "description": None,
     "gender": ["mujer", "hombre", "desconocido"],
     "gender_evidence": None,
     "role": ["estudio", "experta_externa", "paciente_testimonio", "otro"],
-    "leads_study": ["si", "no"],
+    "leads_study": ["si", "no", "no_aplica"],
     "quotes": None,
     "quote_origin": ["a_sinc", "comunicado", "publicacion", "no_especificado", "no_aplica"],
     "intro_style": ["con_credenciales", "solo_nombre", "no_aplica"],
     "honorific": ["doctor", "profesor", "otro", "ninguno"],
-    "later_reference": ["apellido", "nombre", "completo", "mixto", "ninguna", "no_aplica"],
+    "later_surname": ["si", "no", "no_aplica"],
+    "later_first_name": ["si", "no", "no_aplica"],
     "in_title_or_lead": ["si", "no"],
     "notes": None,
 }
-WIDTHS = {"article_id": 14, "title": 40, "name": 24, "description": 26, "gender_evidence": 22,
-          "quotes": 60, "notes": 40}
-
-EXAMPLE = {
-    "article_id": "(ejemplo)", "title": "De histéricas a hipersexuales: enfermedades femeninas…",
-    "row_type": "persona", "name": "María Teresa Ruiz Cantero", "description": "",
-    "gender": "mujer", "gender_evidence": "catedrática", "role": "experta_externa", "leads_study": "",
-    "quotes": "se mantiene el prejuicio de que las mujeres son débiles, sensibles, que aguantan menos, "
-              "que se quejan a la mínima. Lo que se llamó mucho tiempo ‘una histérica || "
-              "Esto es muy grave",
-    "quote_origin": "a_sinc", "intro_style": "con_credenciales", "honorific": "ninguno",
-    "later_reference": "apellido", "in_title_or_lead": "no",
-    "notes": "Ejemplo abreviado: en el artículo tiene más citas, que irían todas en quotes. "
-             "Presentación: 'cuenta a SINC María Teresa Ruiz Cantero, catedrática de Medicina "
-             "Preventiva y Salud Pública de la Universidad de Alicante'",
-}
+WIDTHS = {"name": 22, "description": 22, "gender_evidence": 18, "quotes": 50, "notes": 30}
 
 FONT = Font(name="Arial", size=10)
 BOLD = Font(name="Arial", size=10, bold=True)
 HEADER_FILL = PatternFill("solid", fgColor="D9E1F2")
-REFERENCE_FILL = PatternFill("solid", fgColor="F2F2F2")  # columnas precargadas, no se editan
+REFERENCE_FILL = PatternFill("solid", fgColor="F2F2F2")  # prefilled columns, not to be edited
 WRAP = Alignment(wrap_text=True, vertical="top")
+BLOCK_TOP = Border(top=Side(style="medium", color="808080"))  # separates one article from the next
 
 
 def draw_sample(corpus: list[dict], seed: int) -> list[dict]:
@@ -88,8 +86,8 @@ def draw_sample(corpus: list[dict], seed: int) -> list[dict]:
     chosen = {r["id"] for r in sample}
     sample += rng.sample([r for r in corpus if r["id"] not in chosen], EXTRA)
 
-    # comunes: una noticia antigua, una reciente y un reportaje o entrevista, para cubrir casos
-    # distintos, más dos al azar
+    # shared: an old news item, a recent one and a feature or interview, to cover different
+    # cases, plus two at random
     pilot = [
         rng.choice([r for r in sample if r["type"] == "Noticias" and r["year"] <= "2013"]),
         rng.choice([r for r in sample if r["type"] == "Noticias" and r["year"] >= "2020"]),
@@ -102,10 +100,10 @@ def draw_sample(corpus: list[dict], seed: int) -> list[dict]:
     shared = ordered[:N_SHARED]
     single = iter(ordered[N_SHARED:])
 
-    rows = [{**r, "group": "shared", "split": "dev", "annotators": "all"} for r in shared]
-    for name, (n, split) in ANNOTATORS.items():
+    rows = [{**r, "group": "shared", "split": "dev"} for r in shared]
+    for split, n in SPLITS.items():
         for _ in range(n):
-            rows.append({**next(single), "group": "single", "split": split, "annotators": name})
+            rows.append({**next(single), "group": "single", "split": split})
     return rows
 
 
@@ -114,18 +112,18 @@ def quote_count(text: str) -> int:
 
 
 def pick_dev_extra(corpus: list[dict], articles: dict, exclude: set, seed: int) -> list[dict]:
-    """Artículos de desarrollo elegidos por tipo (no al azar sobre todo el corpus): cubren casos
-    que la muestra aleatoria deja fuera del desarrollo. Generador aparte para no cambiar la muestra."""
+    """Development articles picked by type (not at random over the whole corpus): they cover cases
+    that the random sample leaves out of development. A separate generator, so the sample does not change."""
     rng = random.Random(seed + 1)
     pool = [r for r in corpus if r["id"] not in exclude]
     text = lambda r: articles[r["id"]]["text"]  # noqa: E731
     criteria = [
-        # reportaje con muchas voces (fuentes documentales, personas sin nombre)
+        # feature with many voices (documentary sources, unnamed people)
         lambda r: r["type"] == "Reportajes" and quote_count(text(r)) >= 8 and len(text(r).split()) <= 1500,
-        # nota antigua firmada por una institución, estilo nota de prensa
+        # old note signed by an institution, press-release style
         lambda r: r["type"] == "Noticias" and "2008" <= r["year"] <= "2012"
         and articles[r["id"]]["fuente"] not in ("", "SINC") and quote_count(text(r)) >= 2,
-        # noticia reciente con un testimonio citado de una persona sin nombre (son raros en SINC)
+        # recent news item with a quoted testimony from an unnamed person (rare in SINC)
         lambda r: r["type"] == "Noticias" and r["year"] >= "2020" and quote_count(text(r)) >= 2
         and re.search(r"\btestimonio de (una|un)\b", text(r)),
     ]
@@ -135,94 +133,62 @@ def pick_dev_extra(corpus: list[dict], articles: dict, exclude: set, seed: int) 
         if not candidates:
             raise ValueError("Ningún artículo del corpus cumple un criterio de desarrollo")
         picked.append(rng.choice(candidates))
-    return [{**r, "group": "single", "split": "dev", "annotators": "Gaia"} for r in picked]
+    return [{**r, "group": "single", "split": "dev"} for r in picked]
 
 
-def style_header(ws, headers: list[str]) -> None:
-    ws.append(headers)
+def article_block_text(r: dict, a: dict) -> str:
+    parts = [f"[{r['group']}] {r['year']}, {r['type']}", r["url"], "", f"TÍTULO: {a['title']}"]
+    if a["antetitulo"]:
+        parts.append(f"ANTETÍTULO: {a['antetitulo']}")
+    parts += ["", f"ENTRADILLA: {a['lead']}", "", a["text"]]
+    return "\n".join(parts)
+
+
+def text_height(text: str) -> float:
+    lines = sum(max(1, math.ceil(len(line) / CHARS_PER_LINE)) for line in text.split("\n"))
+    return lines * LINE_HEIGHT + 10
+
+
+def split_sheet(wb: Workbook, split: str, rows: list[dict], articles: dict) -> None:
+    """One block of rows per article of the split: the text in a merged cell on the left (column B,
+    frozen when scrolling) and the people rows on the right, with the article_id already filled in."""
+    ws = wb.create_sheet(SHEETS[split])
+    ws.append(["article_id", "article", *COLUMNS])
     for cell in ws[1]:
         cell.font, cell.fill, cell.alignment = BOLD, HEADER_FILL, WRAP
-    ws.freeze_panes = "A2"
+    ws.freeze_panes = "C2"
 
-
-def instructions_sheet(wb: Workbook) -> None:
-    ws = wb.active
-    ws.title = "Instructions"
-    lines = [
-        ("How to use this workbook", True),
-        ("Full rules: data/annotations/GUIDELINES.md (read it before starting).", False),
-        ("", False),
-        ("1. Read the article in the 'Articles' sheet (title, antetítulo, lead, text). The SINC link is context only.", False),
-        ("2. Annotate in YOUR sheet (Gaia, Tamara, Giulia). Each assigned article already has one row with article_id and title (grey: do not edit).", False),
-        ("3. One row per person. For more people in the same article, insert rows below and copy the article_id.", False),
-        ("4. Articles with no people: row_type = ninguna. Quotes attributed to collectives: one row with row_type = colectivo.", False),
-        ("5. Use the dropdowns. Free-text columns: name, description, gender_evidence, quotes, notes.", False),
-        ("6. quotes: copy the literal text, without quotation marks, separated by ' || '. Interviews: write RESPUESTAS.", False),
-        ("7. Order: first the 2 'shared' articles, alone and WITHOUT discussing them; when all three have finished we compare them together. Then your 'single' articles.", False),
-        ("8. Doubts: never guess; choose the most cautious value and explain in notes.", False),
-        ("9. Privacy: names and gender of real people. Do not share outside the team.", False),
-        ("", False),
-        ("Example row (from an article that is not in the sample)", True),
-    ]
-    for text, bold in lines:
-        ws.append([text])
-        ws.cell(ws.max_row, 1).font = BOLD if bold else FONT
-    ws.append(list(COLUMNS))
-    for cell in ws[ws.max_row]:
-        cell.font, cell.fill = BOLD, HEADER_FILL
-    ws.append([EXAMPLE[c] for c in COLUMNS])
-    for cell in ws[ws.max_row]:
-        cell.font, cell.alignment = FONT, WRAP
-
-    ws.append([])
-    ws.append(["Allowed values"])
-    ws.cell(ws.max_row, 1).font = BOLD
-    for column, values in COLUMNS.items():
-        if values:
-            ws.append([column, " · ".join(values)])
-            ws.cell(ws.max_row, 1).font = BOLD
-            ws.cell(ws.max_row, 2).font = FONT
-    ws.column_dimensions["A"].width = 18
-    for i, column in enumerate(COLUMNS, 1):
-        if i > 1:
-            ws.column_dimensions[ws.cell(1, i).column_letter].width = WIDTHS.get(column, 16)
-
-
-def articles_sheet(wb: Workbook, rows: list[dict], articles: dict) -> None:
-    ws = wb.create_sheet("Articles")
-    headers = ["article_id", "group", "assigned_to", "year", "type", "url", "title", "antetitulo", "lead", "text"]
-    style_header(ws, headers)
-    for r in rows:
+    start = 2
+    for r in (r for r in rows if r["split"] == split):  # shared articles come first
         a = articles[r["id"]]
-        ws.append([r["id"], r["group"], r["annotators"], int(r["year"]), r["type"], r["url"],
-                   a["title"], a["antetitulo"], a["lead"], a["text"]])
-    for row in ws.iter_rows(min_row=2):
-        for cell in row:
-            cell.font, cell.alignment = FONT, WRAP
-    for letter, width in zip("ABCDEFGHIJ", [14, 8, 13, 6, 11, 30, 40, 30, 60, 120]):
-        ws.column_dimensions[letter].width = width
+        text = article_block_text(r, a)
+        height = text_height(text)
+        n = min(MAX_BLOCK_ROWS, max(MIN_BLOCK_ROWS, quote_count(a["text"]) + 3, math.ceil(height / ROW_HEIGHT)))
+        end = start + n - 1
+        for row in range(start, end + 1):
+            ws.cell(row, 1, r["id"])
+            for col in range(1, len(COLUMNS) + 3):
+                cell = ws.cell(row, col)
+                cell.font, cell.alignment = FONT, WRAP
+                if row == start:
+                    cell.border = BLOCK_TOP
+            ws.cell(row, 1).fill = REFERENCE_FILL
+            ws.row_dimensions[row].height = max(ROW_HEIGHT, height / n)
+        ws.cell(start, 2, text).fill = REFERENCE_FILL
+        ws.merge_cells(start_row=start, start_column=2, end_row=end, end_column=2)
+        start = end + 1
 
-
-def annotator_sheet(wb: Workbook, name: str, rows: list[dict], articles: dict) -> None:
-    ws = wb.create_sheet(name)
-    style_header(ws, list(COLUMNS))
-    order = {"shared": 0, "single": 1}
-    mine = [r for r in rows if r["annotators"] in ("all", name)]
-    for r in sorted(mine, key=lambda r: order[r["group"]]):
-        ws.append([r["id"], f"[{r['group']}] {articles[r['id']]['title']}"])
-    for row in ws.iter_rows(min_row=2, max_row=MAX_ROWS, max_col=len(COLUMNS)):
-        for cell in row:
-            cell.font, cell.alignment = FONT, WRAP
-        row[0].fill = row[1].fill = REFERENCE_FILL
-
-    for i, (column, values) in enumerate(COLUMNS.items(), 1):
+    last = start - 1 + SPARE_ROWS
+    ws.column_dimensions["A"].width = 13
+    ws.column_dimensions["B"].width = TEXT_WIDTH
+    for i, (column, values) in enumerate(COLUMNS.items(), 3):
         letter = ws.cell(1, i).column_letter
-        ws.column_dimensions[letter].width = WIDTHS.get(column, 16)
+        ws.column_dimensions[letter].width = WIDTHS.get(column, 14)
         if values:
             dv = DataValidation(type="list", formula1='"' + ",".join(values) + '"', allow_blank=True,
                                 showErrorMessage=True, errorTitle="Invalid value",
-                                error="Choose a value from the list (see Instructions).")
-            dv.add(f"{letter}2:{letter}{MAX_ROWS}")
+                                error="Choose a value from the list (see GUIDELINES.md).")
+            dv.add(f"{letter}2:{letter}{last}")
             ws.add_data_validation(dv)
 
 
@@ -239,22 +205,29 @@ def main() -> None:
     rows = draw_sample(corpus, config["sample"]["seed"])
     rows += pick_dev_extra(corpus, articles, {r["id"] for r in rows}, config["sample"]["seed"])
     out_dir = paths["annotations"]
-    with open(out_dir / "sample.csv", "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=["id", "year", "type", "group", "split", "annotators", "url"])
+    sample_path, sheet_path = out_dir / "sample.csv", out_dir / "ground_truth.xlsx"
+    if sheet_path.exists():
+        raise FileExistsError(f"{sheet_path} ya existe y contiene las anotaciones: no se sobrescribe")
+    if sample_path.exists():
+        with open(sample_path, encoding="utf-8") as f:
+            old = [(r["id"], r["split"]) for r in csv.DictReader(f)]
+        if old != [(r["id"], r["split"]) for r in rows]:
+            raise ValueError(f"La nueva muestra no coincide con {sample_path} (artículos o split): "
+                             "no se sobrescribe, la evaluación con ground_truth.xlsx dejaría de valer")
+    with open(sample_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=["id", "year", "type", "group", "split", "url"])
         writer.writeheader()
         writer.writerows({k: r[k] for k in writer.fieldnames} for r in rows)
 
     wb = Workbook()
-    instructions_sheet(wb)
-    articles_sheet(wb, rows, articles)
-    for name in ANNOTATORS:
-        annotator_sheet(wb, name, rows, articles)
-    wb.save(out_dir / "annotation_sheet.xlsx")
+    wb.remove(wb.active)
+    for split in SPLITS:
+        split_sheet(wb, split, rows, articles)
+    wb.save(sheet_path)
 
-    print(f"{len(rows)} artículos -> {out_dir / 'sample.csv'}, {out_dir / 'annotation_sheet.xlsx'}")
-    for name in ANNOTATORS:
-        mine = [r for r in rows if r["annotators"] in ("all", name)]
-        print(f"  {name}: {len(mine)} artículos")
+    print(f"{len(rows)} artículos -> {sample_path}, {sheet_path}")
+    for split in SPLITS:
+        print(f"  {SHEETS[split]}: {sum(r['split'] == split for r in rows)} artículos")
     by = defaultdict(int)
     for r in rows:
         by[(r["group"], r["split"])] += 1

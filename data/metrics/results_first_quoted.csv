@@ -1,0 +1,2 @@
+,% women,CI low,CI high,% unknown,n,LLM error [95 % CI],corrected,corrected CI low,corrected CI high,presentable,why
+R1: first person quoted,35.60899922420481,33.1807516687933,38.157970356926796,13.547954393024815,1289,"-2.3 [-9.3, +3.5]",37.88820150340709,31.56268497683716,45.33120881447152,yes,error: ±6 pp on the test set

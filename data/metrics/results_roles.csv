@@ -1,0 +1,6 @@
+,% women,CI low,CI high,% unknown,n,LLM error [95 % CI],corrected,corrected CI low,corrected CI high,presentable,why
+R2: estudio,35.57079862812347,33.46609411401285,37.71936312675179,32.327586206896555,2041,"-2.0 [-10.1, +6.4]",37.6056823490537,29.010204478919658,45.83991417548485,yes,error: ±8 pp on the test set
+R2: leads the study,28.879310344827587,25.464355592022216,32.336288416075654,26.96747114375656,696,"-5.9 [-24.3, +10.0]",34.80036297640653,18.998800505050504,53.51491193419463,with care,wide error: ±17 pp on the test set
+R2: experta_externa,39.80891719745223,34.67969573030923,44.83923726258667,8.187134502923977,314,"+10.0 [-25.0, +34.5]",,,,no,the LLM identifies only 42 % of the annotated people in this group
+R2: paciente_testimonio,68.42105263157895,55.55059523809524,79.03406355320172,24.0,57,"-25.0 [-50.0, +0.0]",,,,no,only 2 people of known gender in the test set (fewer than 10)
+R2: otro,28.1786941580756,24.71867044388722,31.937630577913914,32.8719723183391,582,"-22.5 [-66.7, +50.0]",,,,no,only 5 people of known gender in the test set (fewer than 10)

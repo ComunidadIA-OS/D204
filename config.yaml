@@ -1,12 +1,25 @@
-# Configuración del pipeline. Todas las claves son obligatorias.
+# Pipeline configuration. Every key is required except those marked (optional), which have a
+# default value in the code. src/config.py checks the required ones when loading.
 
 llm:
-  # Cualquier endpoint compatible con la API de OpenAI (OVH AI Endpoints, vLLM, Ollama...)
-  base_url: https://oai.endpoints.kepler.ai.cloud.ovh.net/v1
-  model: gpt-oss-120b
-  # Nombre de la variable de entorno que contiene la API key (la clave nunca va en este fichero)
+  # Any OpenAI-compatible endpoint (OVH AI Endpoints, vLLM, Ollama...)
+  # Development: self-hosted Ollama. Production: OVH AI Endpoints with
+  #   base_url: https://oai.endpoints.kepler.ai.cloud.ovh.net/v1   model: gpt-oss-120b
+  base_url: https://ollama.tinman.lst/v1/
+  model: qwen3.8:27b
+  # Name of the environment variable holding the API key (the key never goes in this file)
   api_key_env: LLM_API_KEY
   temperature: 0
+  # (optional) Certificate of a private CA for HTTPS; empty = system CAs
+  ca_cert: ~/certs/ca-lst.crt
+  # (optional, default 600) Maximum seconds to wait for each call
+  timeout_seconds: 900
+  # Limit on generated tokens (reasoning included): cuts responses that never end. Required
+  max_tokens: 6000
+  # (optional, default json_schema) json_schema = output forced to the schema in src/schema.py; json_object = valid JSON only
+  response_format: json_schema
+  # (optional) null = the model's default; "none" turns reasoning off (Ollama); low/medium/high
+  reasoning_effort: "none"
 
 scrape:
   start_url: https://www.agenciasinc.es/Salud
@@ -14,24 +27,31 @@ scrape:
   user_agent: "sinc-mujeres-salud/0.1 (proyecto de investigación Mujeres por la IA Abierta)"
 
 sample:
-  # Muestra estratificada: per_year artículos al azar por año; buffer extra para
-  # cubrir artículos en la frontera entre años, sin licencia CC o con errores
+  # Stratified sample: per_year random articles per year, plus a buffer to cover articles on
+  # the boundary between years, without a CC licence or with errors
   first_year: 2008
   last_year: 2026
   per_year: 150
   buffer: 20
   seed: 42
 
+analysis:
+  # Extraction analysed by src/evaluate.py and src/metrics.py (columns model and run of data/mentions.jsonl)
+  model: qwen3.8:27b
+  run: 816ee2d9-5ff903-p2
+  # Rounds of src/extract.py that make up the analysed corpus (50 articles per year each)
+  rounds: [1, 2]
+
 paths:
-  index: data/index.csv            # todas las URLs de la lista Salud (publicable)
+  index: data/index.csv            # every URL of the Salud listing (published)
   year_bounds: data/year_bounds.json
-  sample: data/sample.csv          # URLs de la muestra (publicable)
-  corpus: data/corpus.csv          # 150 artículos por año, los que se analizan
-  articles: data/articles.jsonl    # textos completos (NO se publica)
-  raw: data/raw                    # HTML comprimido (NO se publica)
+  sample: data/sample.csv          # URLs of the sample (published)
+  corpus: data/corpus.csv          # 150 articles per year; the rounds in analysis.rounds are analysed
+  articles: data/articles.jsonl    # full texts (NOT published)
+  raw: data/raw                    # compressed HTML (NOT published)
   fetch_errors: data/fetch_errors.jsonl
   mentions: data/mentions.jsonl
   cache: data/cache
   annotations: data/annotations
   metrics: data/metrics
-  reports: reports
+  figures: reports/figures
