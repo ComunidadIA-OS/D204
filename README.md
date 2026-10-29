@@ -13,6 +13,9 @@ An open-weights LLM reads each article and extracts every person in it: their ge
 role, their quotes and how they are introduced. The code turns those people into aggregate metrics, measures the
 LLM's error on a hand-annotated test set, corrects the results for that error, and shows them in a dashboard.
 
+The presentation of the project and its video are in [reports/presentation/](reports/presentation/)
+([presentation.pptx](reports/presentation/presentation.pptx), [video.mp4](reports/presentation/video.mp4)).
+
 ## Contents
 
 - [Main results](#main-results)
@@ -322,7 +325,9 @@ mujeres-ia/
 │   │   ├── GUIDELINES.md   # annotation guidelines (Spanish)
 │   │   └── sample.csv      # annotated articles and their split
 │   └── metrics/            # aggregate results, evaluation tables, error replicates
-└── reports/figures/        # figures of the evaluation and of the results
+└── reports/
+    ├── figures/            # figures of the evaluation and of the results
+    └── presentation/       # presentation.pptx and video.mp4 of the project
 ```
 
 Generated locally and not published (in `.gitignore`): `data/articles.jsonl` and `data/raw/` (full texts),
